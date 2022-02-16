@@ -1,0 +1,6 @@
+opencv-python==4.5.5.62
+mediapipe==0.8.9.1
+matplotlib==3.5.1
+numpy==1.22.2
+pygame==2.1.2
+djitellopy==2.4.0
