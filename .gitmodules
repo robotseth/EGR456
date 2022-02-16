@@ -1,0 +1,3 @@
+[submodule "Autonomous_Tello_Drone"]
+	path = Autonomous_Tello_Drone
+	url = https://github.com/crazysuryaa/Autonomous_Tello_Drone
