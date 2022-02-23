@@ -13,6 +13,14 @@ mp_face_detection = mp.solutions.face_detection
 mp_drawing = mp.solutions.drawing_utils
 
 
+class_list = open('data/coco/coco.name', 'r')
+
+class_names=[]
+for class_name in class_list:
+    class_names.append(class_name.strip())
+print(class_names)
+
+
 from headers import YoloV4Header as Header
 from core.model.one_stage.yolov4 import YOLOv4_Tiny as Model
 cfg = decode_cfg("cfgs/coco_yolov4_tiny.yaml")
@@ -86,7 +94,7 @@ def inference(image):
     h, w = image.shape[:2]
     image = preprocess_image(image, (image_size, image_size)).astype(np.float32)
     images = np.expand_dims(image, axis=0)
-    images = images/255.
+    images  = images/255.
 
     tic = time.time()
     pred = model.predict(images)
@@ -143,7 +151,6 @@ while(True):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     ms, bboxes, scores, classes = inference(frame)
     image = draw_bboxes(frame, bboxes, scores, classes, names, shader)
-
     """
     if time.time() - start > 50 :
               myDrone.send_rc_control(0, -5,
@@ -156,22 +163,26 @@ while(True):
                                   0, 10)
     """
 
-    # (l/r, f/b, u/d, cw/ccw)
+    print("Testing v2: ")
+    print(classes.numpy())
+    print("Bracket")
 
-    print("Testing class printing")
-    print(ms)
-    print(bboxes)
-    print(scores)
-    print(classes)
+    detected_classes = classes.numpy()
+    print(detected_classes)
+    print(np.size(detected_classes))
+    if np.size(detected_classes) > 0:
+        first_class = detected_classes[0]
+        first_class_name = class_names[int(first_class)]
+        print(class_names[int(first_class)])
+        if first_class_name == "cell phone":
+            myDrone.send_rc_control(0, 0, 0, 10)
+        elif first_class_name == "book":
+            myDrone.send_rc_control(0, 0, 0, -10)
+        elif first_class_name == "mouse":
+            myDrone.send_rc_control(0, 10, 0, 0)
 
-    """
-    if "mouse" in classes:
-        myDrone.send_rc_control(15, 0, 0, 0)
-    elif "cellphone" in classes:
-        myDrone.send_rc_control(0, 15, 0, 0)
-    elif "backpack" in classes:
-        myDrone.send_rc_control(-15, 0, 0, 0)
-    """
+
+    #print(class_names[detected_classes[0]])
 
     # tracks = tracker.update(bboxes, scores, classes)
     # updated_image = draw_tracks(image, tracks)
