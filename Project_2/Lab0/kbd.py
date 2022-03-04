@@ -14,7 +14,7 @@ FPS = 120
 class FrontEnd(object):
     """ Maintains the Tello display and moves it through the keyboard keys.
         Press escape key to quit.
-        The controls are:
+        The controls are:aaad
             - T: Takeoff
             - L: Land
             - Arrow keys: Forward, backward, left and right.
