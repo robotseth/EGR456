@@ -171,18 +171,52 @@ while(True):
     print(detected_classes)
     print(np.size(detected_classes))
     if np.size(detected_classes) > 0:
-        first_class = detected_classes[0]
-        first_class_name = class_names[int(first_class)]
-        print(class_names[int(first_class)])
-        if first_class_name == "cell phone":
-            myDrone.send_rc_control(0, 0, 0, 10)
-        elif first_class_name == "book":
-            myDrone.send_rc_control(0, 0, 0, -10)
-        elif first_class_name == "mouse":
-            myDrone.send_rc_control(0, 10, 0, 0)
+        # first_class = detected_classes[0]
+        # first_class_name = class_names[int(first_class)]
+        # print(class_names[int(first_class)])
 
+        detected_classes_names = []
+        for class_number in detected_classes:
+            detected_classes_names = class_names[int(class_number)]
+        print(detected_classes_names)
 
-    #print(class_names[detected_classes[0]])
+        # if first_class_name == "cell phone":
+        #     # right if cell phone
+        #     myDrone.send_rc_control(10, 0, 0, 0)
+        # elif first_class_name == "book":
+        #     # forwards if book
+        #     myDrone.send_rc_control(0, 10, 0, -10)
+        # elif first_class_name == "mouse":
+        #     # left if mouse
+        #     myDrone.send_rc_control(-10, 0, 0, 0)
+        # elif first_class_name == "bottle":
+        #     # back if bottle
+        #     myDrone.send_rc_control(0, -10, 0, 0)
+
+        fb_velocity = 0
+        lr_velocity = 0
+        ud_velocity = 0
+        yw_velocity = 0
+
+        if "cell phone" in detected_classes_names:
+            # right if cell phone
+            lr_velocity += 10
+        elif "book" in detected_classes_names:
+            # forwards if book
+            fb_velocity += 10
+        elif "mouse" in detected_classes_names:
+            # left if mouse
+            lr_velocity -= 10
+        elif "bottle" in detected_classes_names:
+            # back if bottle
+            fb_velocity -= 10
+
+        myDrone.send_rc_control(lr_velocity, fb_velocity, ud_velocity, yw_velocity)
+        print(lr_velocity, fb_velocity, ud_velocity, yw_velocity)
+
+    # send_rc_control(left_right_velocity, forward_backward_velocity, up_down_velocity, yaw_velocity)
+
+    # print(class_names[detected_classes[0]])
 
     # tracks = tracker.update(bboxes, scores, classes)
     # updated_image = draw_tracks(image, tracks)
