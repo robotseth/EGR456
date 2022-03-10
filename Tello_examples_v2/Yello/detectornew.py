@@ -3,6 +3,7 @@ from core.utils import decode_cfg, load_weights
 from core.image import draw_bboxes, preprocess_image, postprocess_image, read_image, read_video, Shader
 import matplotlib.pyplot as plt
 import time
+import threading
 import cv2
 import numpy as np
 import tensorflow as tf
@@ -11,7 +12,6 @@ import mediapipe as mp
 from djitellopy import Tello
 mp_face_detection = mp.solutions.face_detection
 mp_drawing = mp.solutions.drawing_utils
-
 
 class_list = open('data/coco/coco.name', 'r')
 
@@ -136,6 +136,14 @@ def telloGetFrame(myDrone, w, h):
     img = cv2.resize(myFrame, (w, h))
     return img
 
+
+def wakeupdrone():
+    while True:
+        print("Battery:" + str(myDrone.get_battery()) + "%")
+        myDrone.send_rc_control(0, 2, 0, 0)
+        time.sleep(10)
+
+
 myDrone = intializeTello()
 w=640
 h=480
@@ -145,31 +153,21 @@ myDrone.takeoff()
 # cap = cv2.VideoCapture(0)
 # tracker = CentroidTracker(max_lost=10, tracker_output_format='mot_challenge')
 start = time.time()
+
+wakeup_poll = threading.Thread(target=wakeupdrone, daemon=True)
+wakeup_poll.start()
 while(True):
     # ret, frame = cap.read()
     frame = telloGetFrame(myDrone, w, h)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     ms, bboxes, scores, classes = inference(frame)
     image = draw_bboxes(frame, bboxes, scores, classes, names, shader)
-    """
-    if time.time() - start > 50 :
-              myDrone.send_rc_control(0, -5,
-                                  0, 10)
-    elif time.time() - start > 30 :
-              myDrone.send_rc_control(0, 5,
-                                  0, -15)                         
-    elif time.time()-start > 0:
-              myDrone.send_rc_control(0, 5,
-                                  0, 10)
-    """
 
     print("Testing v2: ")
     print(classes.numpy())
     print("Bracket")
 
     detected_classes = classes.numpy()
-    print(detected_classes)
-    print(np.size(detected_classes))
     if np.size(detected_classes) > 0:
         # first_class = detected_classes[0]
         # first_class_name = class_names[int(first_class)]
@@ -199,24 +197,32 @@ while(True):
         yw_velocity = 0
 
         if "cell phone" in detected_classes_names:
-            # right if cell phone
-            lr_velocity += 10
-        elif "book" in detected_classes_names:
-            # forwards if book
-            fb_velocity += 10
-        elif "mouse" in detected_classes_names:
-            # left if mouse
-            lr_velocity -= 10
-        elif "bottle" in detected_classes_names:
-            # back if bottle
-            fb_velocity -= 10
+            # forwards if cell phone
+            fb_velocity += 15
+        elif ("cup" in detected_classes_names) or ("vase" in detected_classes_names):
+            # backwards if cup or vase
+            fb_velocity -= 15
+        elif "backpack" in detected_classes_names:
+            # down if backpack
+            ud_velocity -= 15
+        elif "suitcase" in detected_classes_names:
+            # up if suitcase
+            ud_velocity += 15
+        elif "chair" in detected_classes_names:
+            # left if chair
+            lr_velocity -= 15
+        elif "person" in detected_classes_names:
+            # right if person
+            lr_velocity += 15
+        elif "dog" in detected_classes_names:
+            # flip if dog
+            myDrone.flipbackward()
 
         myDrone.send_rc_control(lr_velocity, fb_velocity, ud_velocity, yw_velocity)
         print(lr_velocity, fb_velocity, ud_velocity, yw_velocity)
 
-    # send_rc_control(left_right_velocity, forward_backward_velocity, up_down_velocity, yaw_velocity)
-
-    # print(class_names[detected_classes[0]])
+    else:
+        myDrone.send_rc_control(0, 0, 0, 0)
 
     # tracks = tracker.update(bboxes, scores, classes)
     # updated_image = draw_tracks(image, tracks)
@@ -228,6 +234,7 @@ while(True):
     cv2.imshow('frame',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         myDrone.land()
+
         break
 
 # cap.release()
