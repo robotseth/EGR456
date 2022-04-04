@@ -20,14 +20,13 @@ for line in range(len(lines)):
     tmp = np.vstack((tmp,lines[line][0]))
 lines = tmp
 
-# sorts array by theta
-print(lines[lines[:, 0].argsort()])
-
 rho_threshold = 50
 theta_threshold = 5
 
 
-def group_similar (data, itterations):
+def group_similar (data, itterations, axis):
+    # sorts array by theta
+    data = data[data[:, axis].argsort()]
     rows = 0
     columns = 0
     rows_to_delete = []
@@ -43,7 +42,8 @@ def group_similar (data, itterations):
         rows_to_delete = []
     return data
 
-lines = group_similar(lines,5)
+lines = group_similar(lines,5,0)
+lines = group_similar(lines,5,1)
 print(lines)
 
 for i in range(len(lines)):
