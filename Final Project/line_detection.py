@@ -3,12 +3,6 @@ import cv2
 from scipy import ndimage as ndi
 from collections import defaultdict
 
-from numpy import unique
-from numpy import where
-from sklearn.datasets import make_classification
-from sklearn.cluster import AffinityPropagation
-from matplotlib import pyplot
-
 img = cv2.imread('test1.png')
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 smooth = ndi.filters.median_filter(gray, size=2)
@@ -20,45 +14,49 @@ edges = smooth > 180
 
 lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
 
-#print(lines)
+# formats lines as an array of rho theta pairs
+tmp = np.empty(shape=(1,2))
+for line in range(len(lines)):
+    tmp = np.vstack((tmp,lines[line][0]))
+lines = tmp
 
-line_array = np.empty(shape=(1,2))
+# sorts array by theta
+print(lines[lines[:, 0].argsort()])
+
+rho_threshold = 50
+theta_threshold = 5
+
+
+def group_similar (data, itterations):
+    rows = 0
+    columns = 0
+    rows_to_delete = []
+    #tmp_array = np.empty(shape=(1,2))
+    for j in range(itterations):
+        rows, columns = data.shape
+        for i in range(rows - 1):
+            if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
+                tmp_array = np.vstack((data[i], data[i+1]))
+                data[i] = tmp_array.mean(axis=0)
+                rows_to_delete.append(i)
+        data = np.delete(lines, (rows_to_delete), axis=0)
+        rows_to_delete = []
+    return data
+
+lines = group_similar(lines,5)
+print(lines)
+
 for i in range(len(lines)):
-    line_array = np.append(line_array,lines[i],axis=0)
-
-# define the model
-model = AffinityPropagation(damping=0.9)
-# fit the model
-model.fit(line_array)
-# assign a cluster to each example
-yhat = model.predict(line_array)
-# retrieve unique clusters
-clusters = unique(yhat)
-# create scatter plot for samples from each cluster
-for cluster in clusters:
-    row_ix = where(yhat == cluster)
-    #print(row_ix)
-    rho_array = np.average(line_array[row_ix, 0], axis=0)
-    theta_array = np.average(line_array[row_ix, 1], axis=0)
-    pyplot.scatter(line_array[row_ix, 0], line_array[row_ix, 1])
-# show the plot
-pyplot.show()
-
-
-avg_lines = np.hstack((np.vstack(rho_array),np.vstack(theta_array)))
-print(avg_lines)
-
-for i in range(len(lines)):
-    for rho,theta in lines[i]:
-        a = np.cos(theta)
-        b = np.sin(theta)
-        x0 = a*rho
-        y0 = b*rho
-        x1 = int(x0 + 1000*(-b))
-        y1 = int(y0 + 1000*(a))
-        x2 = int(x0 - 1000*(-b))
-        y2 = int(y0 - 1000*(a))
-        cv2.line(img,(x1,y1),(x2,y2),(0,0,255),2)
+    rho,theta = lines[i]
+    a = np.cos(theta)
+    b = np.sin(theta)
+    x0 = a*rho
+    y0 = b*rho
+    x1 = int(x0 + 1000*(-b))
+    y1 = int(y0 + 1000*(a))
+    x2 = int(x0 - 1000*(-b))
+    y2 = int(y0 - 1000*(a))
+    cv2.line(img,(x1,y1),(x2,y2),(0,0,255),2)
 
 # group lines
 # average group
