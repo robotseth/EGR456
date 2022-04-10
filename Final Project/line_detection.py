@@ -18,15 +18,17 @@ lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
 tmp = np.empty(shape=(1,2))
 for line in range(len(lines)):
     tmp = np.vstack((tmp,lines[line][0]))
+tmp = np.delete(tmp, (0), axis=0)
 lines = tmp
 
-rho_threshold = 50
-theta_threshold = 5
+rho_threshold = 5
+theta_threshold = .1
 
-
+"""
 def group_similar (data, itterations, axis):
     # sorts array by theta
     data = data[data[:, axis].argsort()]
+    print(data)
     rows = 0
     columns = 0
     rows_to_delete = []
@@ -38,13 +40,43 @@ def group_similar (data, itterations, axis):
                 tmp_array = np.vstack((data[i], data[i+1]))
                 data[i] = tmp_array.mean(axis=0)
                 rows_to_delete.append(i)
+            i += 2
         data = np.delete(lines, (rows_to_delete), axis=0)
         rows_to_delete = []
     return data
+"""
+def group_similar (data, axis):
+    data = data[data[:, axis].argsort()]# sorts array by theta
+    tmp = np.zeros(shape=(1,2))
+    #print(tmp)
+    rows, columns = data.shape
+    for i in range(rows - 1):
+        if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
+            # tmp.append([data[i], data[i+1]])
+            # average values and append to array
+            b = np.array([data[i][0], data[i][1], data[i+1][0], data[i+1][1]]).reshape(2,2)
+            #print(b)
+            c = b.mean(axis=0)
+            #print(c)
+            tmp = np.vstack((tmp,c))
+            #print("if triggered")
+        else:
+            # append unaltered row
+            c = np.array([data[i][0], data[i][1]])
+            tmp = np.vstack((tmp, c))
+    c = np.array([data[-1][0], data[-1][1]])
+    tmp = np.vstack((tmp, c))
+    tmp = np.delete(tmp, (0), axis=0)
+    #print(tmp)
+    return tmp
 
-lines = group_similar(lines,5,0)
-lines = group_similar(lines,5,1)
-print(lines)
+def group_lines (lines, itterations):
+    for i in range(itterations):
+        lines = group_similar(lines, 1 * (i % 2 == 0))
+    return lines
+
+
+lines = group_lines(lines, 40)
 
 for i in range(len(lines)):
     rho,theta = lines[i]
