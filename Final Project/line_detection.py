@@ -13,6 +13,7 @@ cv2.waitKey(0)
 edges = smooth > 180
 
 lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
+print(lines)
 
 # formats lines as an array of rho theta pairs
 tmp = np.empty(shape=(1,2))
@@ -75,9 +76,43 @@ def group_lines (lines, itterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
+def segment_by_angle_kmeans(lines, k=2, **kwargs):
+    """Groups lines based on angle with k-means.
+
+    Uses k-means on the coordinates of the angle on the unit circle
+    to segment `k` angles inside `lines`.
+    """
+
+    # Define criteria = (type, max_iter, epsilon)
+    default_criteria_type = cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER
+    criteria = kwargs.get('criteria', (default_criteria_type, 10, 1.0))
+    flags = kwargs.get('flags', cv2.KMEANS_RANDOM_CENTERS)
+    attempts = kwargs.get('attempts', 10)
+
+    # returns angles in [0, pi] in radians
+    angles = np.array([line[0] for line in lines])
+    # multiply the angles by two and find coordinates of that angle
+    pts = np.array([[np.cos(2*angle), np.sin(2*angle)]
+                    for angle in angles], dtype=np.float32)
+
+    # run kmeans on the coords
+    labels, centers = cv2.kmeans(pts, k, None, criteria, attempts, flags)[1:]
+    labels = labels.reshape(-1)  # transpose to row vec
+
+    # segment lines based on their kmeans label
+    segmented = defaultdict(list)
+    for i, line in enumerate(lines):
+        segmented[labels[i]].append(line)
+    segmented = list(segmented.values())
+    return segmented
 
 lines = group_lines(lines, 40)
+print(lines)
+segmented = segment_by_angle_kmeans(lines)
 
+print(segmented)
+
+"""
 for i in range(len(lines)):
     rho,theta = lines[i]
     a = np.cos(theta)
@@ -97,3 +132,4 @@ for i in range(len(lines)):
 cv2.imshow("Line Detection", img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+"""
