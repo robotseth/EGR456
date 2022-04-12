@@ -25,27 +25,7 @@ lines = tmp
 rho_threshold = 5
 theta_threshold = .1
 
-"""
-def group_similar (data, itterations, axis):
-    # sorts array by theta
-    data = data[data[:, axis].argsort()]
-    print(data)
-    rows = 0
-    columns = 0
-    rows_to_delete = []
-    #tmp_array = np.empty(shape=(1,2))
-    for j in range(itterations):
-        rows, columns = data.shape
-        for i in range(rows - 1):
-            if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
-                tmp_array = np.vstack((data[i], data[i+1]))
-                data[i] = tmp_array.mean(axis=0)
-                rows_to_delete.append(i)
-            i += 2
-        data = np.delete(lines, (rows_to_delete), axis=0)
-        rows_to_delete = []
-    return data
-"""
+
 def group_similar (data, axis):
     data = data[data[:, axis].argsort()]# sorts array by theta
     tmp = np.zeros(shape=(1,2))
@@ -76,43 +56,13 @@ def group_lines (lines, itterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
-def segment_by_angle_kmeans(lines, k=2, **kwargs):
-    """Groups lines based on angle with k-means.
-
-    Uses k-means on the coordinates of the angle on the unit circle
-    to segment `k` angles inside `lines`.
-    """
-
-    # Define criteria = (type, max_iter, epsilon)
-    default_criteria_type = cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER
-    criteria = kwargs.get('criteria', (default_criteria_type, 10, 1.0))
-    flags = kwargs.get('flags', cv2.KMEANS_RANDOM_CENTERS)
-    attempts = kwargs.get('attempts', 10)
-
-    # returns angles in [0, pi] in radians
-    angles = np.array([line[0] for line in lines])
-    # multiply the angles by two and find coordinates of that angle
-    pts = np.array([[np.cos(2*angle), np.sin(2*angle)]
-                    for angle in angles], dtype=np.float32)
-
-    # run kmeans on the coords
-    labels, centers = cv2.kmeans(pts, k, None, criteria, attempts, flags)[1:]
-    labels = labels.reshape(-1)  # transpose to row vec
-
-    # segment lines based on their kmeans label
-    segmented = defaultdict(list)
-    for i, line in enumerate(lines):
-        segmented[labels[i]].append(line)
-    segmented = list(segmented.values())
-    return segmented
-
 lines = group_lines(lines, 40)
 print(lines)
 segmented = segment_by_angle_kmeans(lines)
 
 print(segmented)
 
-"""
+
 for i in range(len(lines)):
     rho,theta = lines[i]
     a = np.cos(theta)
@@ -132,4 +82,3 @@ for i in range(len(lines)):
 cv2.imshow("Line Detection", img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-"""
