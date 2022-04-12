@@ -1,19 +1,28 @@
 import numpy as np
 import cv2
 from scipy import ndimage as ndi
-from collections import defaultdict
+from djitellopy import Tello
 
-img = cv2.imread('test1.png')
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-smooth = ndi.filters.median_filter(gray, size=2)
+tello = Tello()
+connected = False
 
-cv2.imshow("SMOOTHED", smooth)
-cv2.waitKey(0)
+try:
+    #tello.connect()
+    raise ValueError('Not trying to connect to drone - uncomment line above')
+    print("Connected to tello")
+    connected = True
+    # connect opencv to live video
+except:
+    print("Failed to connect to tello")
+    img = cv2.imread('test1.png')
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    smooth = ndi.filters.median_filter(gray, size=2)
+    cv2.imshow("SMOOTHED", smooth)
+    cv2.waitKey(0)
 
 edges = smooth > 180
 
 lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
-print(lines)
 
 # formats lines as an array of rho theta pairs
 tmp = np.empty(shape=(1,2))
@@ -25,26 +34,29 @@ lines = tmp
 rho_threshold = 5
 theta_threshold = .1
 
-# def corner_dist ():
-#     camera_angle = 20
-#     elevation = 1 # read sensor for real elevation
-    
+def corner_dist ():
+    global connected
+    # improve angle with accelerometer reading
+    camera_angle = 0.349066
+    if connected:
+        elevation = tello.get_height()
+    else:
+        elevation = 100
+    dist = elevation / np.tan(camera_angle)
+    print("Distance from intersection: " + str(dist))
+    return dist
 
 def group_similar (data, axis):
-    data = data[data[:, axis].argsort()]# sorts array by theta
+    data = data[data[:, axis].argsort()] # sorts array
     tmp = np.zeros(shape=(1,2))
-    #print(tmp)
     rows, columns = data.shape
     for i in range(rows - 1):
         if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
             # tmp.append([data[i], data[i+1]])
             # average values and append to array
             b = np.array([data[i][0], data[i][1], data[i+1][0], data[i+1][1]]).reshape(2,2)
-            #print(b)
             c = b.mean(axis=0)
-            #print(c)
             tmp = np.vstack((tmp,c))
-            #print("if triggered")
         else:
             # append unaltered row
             c = np.array([data[i][0], data[i][1]])
@@ -52,7 +64,6 @@ def group_similar (data, axis):
     c = np.array([data[-1][0], data[-1][1]])
     tmp = np.vstack((tmp, c))
     tmp = np.delete(tmp, (0), axis=0)
-    #print(tmp)
     return tmp
 
 def group_lines (lines, itterations):
@@ -61,7 +72,24 @@ def group_lines (lines, itterations):
     return lines
 
 
+def get_closest_line (lines):
+    print(img.shape)
+    x0, y0, c = img.shape
+    distances = []
+    for line in lines:
+        x = np.cos(line[1]) * line[0]
+        y = np.sin(line[1]) * line[0]
+        dist = abs(np.sin(y - y0/2) - np.sin(x - x0/2))
+        distances.append(dist)
+        print(dist)
+    index_min = min(range(len(distances)), key=distances.__getitem__)
+    closest_line = lines[index_min]
+    return closest_line
+
+
 lines = group_lines(lines, 40)
+close_line = get_closest_line(lines)
+corner_dist()
 
 
 def check_intersection(line1, line2):
@@ -131,6 +159,17 @@ for pt in intersections:
     pt_y = int(np.round(pt[1]))
     print(pt_x, ",", pt_y)
     cv2.circle(img, (pt_x, pt_y), radius=2, color=(255, 0, 0), thickness=2)
+
+rho,theta = close_line
+a = np.cos(theta)
+b = np.sin(theta)
+x0 = a*rho
+y0 = b*rho
+x1 = int(x0 + 1000*(-b))
+y1 = int(y0 + 1000*(a))
+x2 = int(x0 - 1000*(-b))
+y2 = int(y0 - 1000*(a))
+cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
 
 # Show the result
 cv2.imshow("Line Detection", img)
