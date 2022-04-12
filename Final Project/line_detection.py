@@ -88,12 +88,6 @@ def get_closest_line (lines):
     closest_line = lines[index_min]
     return closest_line
 
-
-lines = group_lines(lines, 40)
-close_line = get_closest_line(lines)
-corner_dist()
-
-
 def check_intersection(line1, line2):
     # Line format is [rho, theta]
     rho1 = line1[0]
@@ -141,11 +135,17 @@ def find_intersections(lines):
 
     return found_pts
 
+def draw_point (point, color):
+    pt_x = int(np.round(point[0]))
+    pt_y = int(np.round(point[1]))
+    cv2.circle(img, (pt_x, pt_y), radius=2, color=(color), thickness=2)
+    
+def draw_points (points, color):
+    for point in points:
+        draw_point(point, color)
 
-intersections = find_intersections(lines)
-
-for i in range(len(lines)):
-    rho,theta = lines[i]
+def draw_line (line, color):
+    rho, theta = line
     a = np.cos(theta)
     b = np.sin(theta)
     x0 = a*rho
@@ -154,24 +154,22 @@ for i in range(len(lines)):
     y1 = int(y0 + 1000*(a))
     x2 = int(x0 - 1000*(-b))
     y2 = int(y0 - 1000*(a))
-    cv2.line(img,(x1,y1),(x2,y2),(0,0,255),1)
+    cv2.line(img,(x1,y1),(x2,y2),(color),2)
 
-for pt in intersections:
-    pt_x = int(np.round(pt[0]))
-    pt_y = int(np.round(pt[1]))
-    print(pt_x, ",", pt_y)
-    cv2.circle(img, (pt_x, pt_y), radius=2, color=(255, 0, 0), thickness=2)
 
-rho,theta = close_line
-a = np.cos(theta)
-b = np.sin(theta)
-x0 = a*rho
-y0 = b*rho
-x1 = int(x0 + 1000*(-b))
-y1 = int(y0 + 1000*(a))
-x2 = int(x0 - 1000*(-b))
-y2 = int(y0 - 1000*(a))
-cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
+def draw_lines (lines, color):
+    for line in lines:
+        draw_line(line, color)
+
+
+lines = group_lines(lines, 40)
+close_line = get_closest_line(lines)
+
+intersections = find_intersections(lines)
+
+draw_lines(lines, (0,0,255))
+draw_line(close_line, (0,255,0))
+draw_points(intersections, (255,0,0))
 
 # Show the result
 cv2.imshow("Line Detection", img)
