@@ -23,6 +23,7 @@ except:
 edges = smooth > 180
 
 lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
+#lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi/180, 700)
 
 # formats lines as an array of rho theta pairs
 tmp = np.empty(shape=(1,2))
@@ -73,9 +74,10 @@ def group_lines (lines, itterations):
 
 
 def get_closest_line (lines):
-    print(img.shape)
+    #print(img.shape)
     x0, y0, c = img.shape
     distances = []
+    # open
     for line in lines:
         x = np.cos(line[1]) * line[0]
         y = np.sin(line[1]) * line[0]
