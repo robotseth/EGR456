@@ -25,6 +25,10 @@ lines = tmp
 rho_threshold = 5
 theta_threshold = .1
 
+def corner_dist ():
+    camera_angle = 20
+    elevation = 1 # read sensor for real elevation
+    
 
 def group_similar (data, axis):
     data = data[data[:, axis].argsort()]# sorts array by theta
@@ -57,11 +61,6 @@ def group_lines (lines, itterations):
     return lines
 
 lines = group_lines(lines, 40)
-print(lines)
-segmented = segment_by_angle_kmeans(lines)
-
-print(segmented)
-
 
 for i in range(len(lines)):
     rho,theta = lines[i]
@@ -74,9 +73,6 @@ for i in range(len(lines)):
     x2 = int(x0 - 1000*(-b))
     y2 = int(y0 - 1000*(a))
     cv2.line(img,(x1,y1),(x2,y2),(0,0,255),2)
-
-# group lines
-# average group
 
 # Show the result
 cv2.imshow("Line Detection", img)
