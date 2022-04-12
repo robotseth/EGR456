@@ -13,6 +13,7 @@ cv2.waitKey(0)
 edges = smooth > 180
 
 lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
+print(lines)
 
 # formats lines as an array of rho theta pairs
 tmp = np.empty(shape=(1,2))
@@ -24,27 +25,7 @@ lines = tmp
 rho_threshold = 5
 theta_threshold = .1
 
-"""
-def group_similar (data, itterations, axis):
-    # sorts array by theta
-    data = data[data[:, axis].argsort()]
-    print(data)
-    rows = 0
-    columns = 0
-    rows_to_delete = []
-    #tmp_array = np.empty(shape=(1,2))
-    for j in range(itterations):
-        rows, columns = data.shape
-        for i in range(rows - 1):
-            if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
-                tmp_array = np.vstack((data[i], data[i+1]))
-                data[i] = tmp_array.mean(axis=0)
-                rows_to_delete.append(i)
-            i += 2
-        data = np.delete(lines, (rows_to_delete), axis=0)
-        rows_to_delete = []
-    return data
-"""
+
 def group_similar (data, axis):
     data = data[data[:, axis].argsort()]# sorts array by theta
     tmp = np.zeros(shape=(1,2))
@@ -75,8 +56,12 @@ def group_lines (lines, itterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
-
 lines = group_lines(lines, 40)
+print(lines)
+segmented = segment_by_angle_kmeans(lines)
+
+print(segmented)
+
 
 for i in range(len(lines)):
     rho,theta = lines[i]
