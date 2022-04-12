@@ -7,7 +7,8 @@ tello = Tello()
 connected = False
 
 try:
-    tello.connect()
+    #tello.connect()
+    raise ValueError('Not trying to connect to drone - uncomment line above')
     print("Connected to tello")
     connected = True
     # connect opencv to live video
@@ -36,7 +37,7 @@ theta_threshold = .1
 def corner_dist ():
     global connected
     # improve angle with accelerometer reading
-    camera_angle = 20
+    camera_angle = 0.349066
     if connected:
         elevation = tello.get_height()
     else:
@@ -70,7 +71,24 @@ def group_lines (lines, itterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
+
+def get_closest_line (lines):
+    print(img.shape)
+    x0, y0, c = img.shape
+    distances = []
+    for line in lines:
+        x = np.cos(line[1]) * line[0]
+        y = np.sin(line[1]) * line[0]
+        dist = abs(np.sin(y - y0/2) - np.sin(x - x0/2))
+        distances.append(dist)
+        print(dist)
+    index_min = min(range(len(distances)), key=distances.__getitem__)
+    closest_line = lines[index_min]
+    return closest_line
+
+
 lines = group_lines(lines, 40)
+close_line = get_closest_line(lines)
 corner_dist()
 
 for i in range(len(lines)):
@@ -84,6 +102,17 @@ for i in range(len(lines)):
     x2 = int(x0 - 1000*(-b))
     y2 = int(y0 - 1000*(a))
     cv2.line(img,(x1,y1),(x2,y2),(0,0,255),2)
+
+rho,theta = close_line
+a = np.cos(theta)
+b = np.sin(theta)
+x0 = a*rho
+y0 = b*rho
+x1 = int(x0 + 1000*(-b))
+y1 = int(y0 + 1000*(a))
+x2 = int(x0 - 1000*(-b))
+y2 = int(y0 - 1000*(a))
+cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
 
 # Show the result
 cv2.imshow("Line Detection", img)
