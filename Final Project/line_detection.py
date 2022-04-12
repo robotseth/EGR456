@@ -1,19 +1,27 @@
 import numpy as np
 import cv2
 from scipy import ndimage as ndi
-from collections import defaultdict
+from djitellopy import Tello
 
-img = cv2.imread('test1.png')
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-smooth = ndi.filters.median_filter(gray, size=2)
+tello = Tello()
+connected = False
 
-cv2.imshow("SMOOTHED", smooth)
-cv2.waitKey(0)
+try:
+    tello.connect()
+    print("Connected to tello")
+    connected = True
+    # connect opencv to live video
+except:
+    print("Failed to connect to tello")
+    img = cv2.imread('test1.png')
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    smooth = ndi.filters.median_filter(gray, size=2)
+    cv2.imshow("SMOOTHED", smooth)
+    cv2.waitKey(0)
 
 edges = smooth > 180
 
 lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
-print(lines)
 
 # formats lines as an array of rho theta pairs
 tmp = np.empty(shape=(1,2))
@@ -26,25 +34,28 @@ rho_threshold = 5
 theta_threshold = .1
 
 def corner_dist ():
+    global connected
+    # improve angle with accelerometer reading
     camera_angle = 20
-    elevation = 1 # read sensor for real elevation
-    
+    if connected:
+        elevation = tello.get_height()
+    else:
+        elevation = 100
+    dist = elevation / np.tan(camera_angle)
+    print("Distance from intersection: " + str(dist))
+    return dist
 
 def group_similar (data, axis):
-    data = data[data[:, axis].argsort()]# sorts array by theta
+    data = data[data[:, axis].argsort()] # sorts array
     tmp = np.zeros(shape=(1,2))
-    #print(tmp)
     rows, columns = data.shape
     for i in range(rows - 1):
         if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
             # tmp.append([data[i], data[i+1]])
             # average values and append to array
             b = np.array([data[i][0], data[i][1], data[i+1][0], data[i+1][1]]).reshape(2,2)
-            #print(b)
             c = b.mean(axis=0)
-            #print(c)
             tmp = np.vstack((tmp,c))
-            #print("if triggered")
         else:
             # append unaltered row
             c = np.array([data[i][0], data[i][1]])
@@ -52,7 +63,6 @@ def group_similar (data, axis):
     c = np.array([data[-1][0], data[-1][1]])
     tmp = np.vstack((tmp, c))
     tmp = np.delete(tmp, (0), axis=0)
-    #print(tmp)
     return tmp
 
 def group_lines (lines, itterations):
@@ -61,6 +71,7 @@ def group_lines (lines, itterations):
     return lines
 
 lines = group_lines(lines, 40)
+corner_dist()
 
 for i in range(len(lines)):
     rho,theta = lines[i]
