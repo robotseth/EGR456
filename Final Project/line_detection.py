@@ -3,10 +3,21 @@ import cv2
 from scipy import ndimage as ndi
 from djitellopy import Tello
 
+from matplotlib import pyplot as plt
+
 tello = Tello()
 connected = False
 
-img = cv2.imread('test (6).jpg')
+img = cv2.imread('test (5).jpg')
+
+lower_white = np.array([170, 170, 170])
+upper_white = np.array([255, 255, 255])
+
+mask = cv2.inRange(img, lower_white, upper_white)
+res = cv2.bitwise_and(img, img, mask=mask)
+img = res
+
+
 
 try:
     #tello.connect()
@@ -24,10 +35,18 @@ def find_lines ():
     smooth = ndi.filters.median_filter(gray, size=2)
     cv2.imshow("SMOOTHED", smooth)
     cv2.waitKey(0)
-    edges = smooth > 200 #180
+    #edges = smooth > 180 #180
+    edges = cv2.Canny(img, 100, 200)
+
+    plt.subplot(121), plt.imshow(img, cmap='gray')
+    plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+    plt.subplot(122), plt.imshow(edges, cmap='gray')
+    plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
+    plt.show()
+
     #draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
-    lines = cv2.HoughLines(edges.astype(np.uint8), .3, np.pi / 180, 100) #edges.astype(np.uint8), .4, np.pi / 180, 120
+    lines = cv2.HoughLines(edges.astype(np.uint8), .8, np.pi / 180, 120) #edges.astype(np.uint8), .4, np.pi / 180, 120
     #lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
     tmp = np.empty(shape=(1, 2))
