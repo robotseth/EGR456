@@ -10,17 +10,14 @@ tello = Tello()
 connected = False
 
 
-img = cv2.imread('test (7).jpg')
+img = cv2.imread('test (8).jpg')
 
 
 lower_white = np.array([170, 170, 170])
 upper_white = np.array([255, 255, 255])
 
 mask = cv2.inRange(img, lower_white, upper_white)
-res = cv2.bitwise_and(img, img, mask=mask)
-img = res
-
-
+img = cv2.bitwise_and(img, img, mask=mask)
 
 try:
     #tello.connect()
@@ -49,7 +46,7 @@ def find_lines ():
     """
     # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
-    lines = cv2.HoughLines(edges.astype(np.uint8), .3, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
+    lines = cv2.HoughLines(edges.astype(np.uint8), .2, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
     # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
     tmp = np.empty(shape=(1, 2))
@@ -219,7 +216,9 @@ close_line = get_closest_line(lines)
 intersections = find_intersections(lines)
 print(intersections)
 
-print(time.time() - startTime)
+duration = time.time() - startTime
+print(duration)
+print("FPS: " + str(1 / duration))
 
 draw_lines(lines, (0,0,255))
 draw_line(close_line, (0,255,0))
