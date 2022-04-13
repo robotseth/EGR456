@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 tello = Tello()
 connected = False
 
-img = cv2.imread('test (5).jpg')
+img = cv2.imread('test (7).jpg')
 
 lower_white = np.array([170, 170, 170])
 upper_white = np.array([255, 255, 255])
@@ -44,10 +44,10 @@ def find_lines ():
     plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
     plt.show()
 
-    #draw_lines(edges,(255,255,0))
+    # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
-    lines = cv2.HoughLines(edges.astype(np.uint8), .8, np.pi / 180, 120) #edges.astype(np.uint8), .4, np.pi / 180, 120
-    #lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
+    lines = cv2.HoughLines(edges.astype(np.uint8), .7, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
+    # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
     tmp = np.empty(shape=(1, 2))
     for line in range(len(lines)):
@@ -70,10 +70,10 @@ def corner_dist():
 
 
 def group_similar(data, axis):
-    rho_threshold = 10
+    rho_threshold = 15
     theta_threshold = .1
-    data = data[data[:, axis].argsort()] # sorts array
-    tmp = np.zeros(shape=(1,2))
+    data = data[data[:, axis].argsort()]  # sorts array
+    tmp = np.zeros(shape=(1, 2))
     rows, columns = data.shape
     for i in range(rows - 1):
         if abs(data[i][0] - data[i+1][0]) <= rho_threshold and abs(data[i][1] - data[i+1][1]) <= theta_threshold:
@@ -100,13 +100,15 @@ def group_lines (lines, itterations):
 
 def get_closest_line (lines):
     #print(img.shape)
-    x0, y0, c = img.shape
+    y0, x0, c = img.shape
+    print(x0,y0)
+    draw_point([x0/2, y0/2], (255,0,255))
     distances = []
     # open
     for line in lines:
         x = np.cos(line[1]) * line[0]
         y = np.sin(line[1]) * line[0]
-        dist = abs(np.sin(y - y0/2) - np.sin(x - x0/2))
+        dist = abs(np.cos(y - y0/2) - np.sin(x - x0/2))
         distances.append(dist)
         print(dist)
     index_min = min(range(len(distances)), key=distances.__getitem__)
@@ -123,8 +125,8 @@ def check_intersection(line1, line2):
 
     # A = [cos θ1  sin θ1]   b = |r1|   X = |x|
     #     [cos θ2  sin θ2]       |r2|       |y|
-    a1 = np.array([[ np.cos(the1), np.sin(the1) ],[ np.cos(the2), np.sin(the2) ]])
-    b1 = np.array([[rho1],[rho2]])
+    a1 = np.array([[ np.cos(the1), np.sin(the1) ], [ np.cos(the2), np.sin(the2) ]])
+    b1 = np.array([[rho1], [rho2]])
 
     # TODO: Figure out why it finds intersections where there are no lines
     try:
