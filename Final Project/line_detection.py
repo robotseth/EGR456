@@ -56,7 +56,7 @@ def find_lines ():
     return tmp
 
 
-def corner_dist ():
+def corner_dist():
     global connected
     # improve angle with accelerometer reading
     camera_angle = 0.349066
@@ -69,7 +69,7 @@ def corner_dist ():
     return dist
 
 
-def group_similar (data, axis):
+def group_similar(data, axis):
     rho_threshold = 10
     theta_threshold = .1
     data = data[data[:, axis].argsort()] # sorts array
@@ -151,28 +151,28 @@ def find_intersections(lines):
     global img
     # Iterate through half of the lines
     found_pts = []
-    # TODO: Iterate over the lines in a smarter way, this is stupid and only for testing
-    for i in range(len(lines)-1):
-        pt = check_intersection(lines[i], lines[i+1])
-        #print(pt)
-        if pt is not False:
-            if point_within_frame(pt, img):
-                found_pts.append(pt)
+    for i in range(len(lines)):
+        for j in range(i+1, len(lines)):
+            pt = check_intersection(lines[i], lines[j])
+            #print(pt)
+            if pt is not False:
+                if point_within_frame(pt, img):
+                    found_pts.append(pt)
     return found_pts
 
 
-def draw_point (point, color):
+def draw_point(point, color):
     pt_x = int(np.round(point[0]))
     pt_y = int(np.round(point[1]))
     cv2.circle(img, (pt_x, pt_y), radius=2, color=(color), thickness=2)
 
 
-def draw_points (points, color):
+def draw_points(points, color):
     for point in points:
         draw_point(point, color)
 
 
-def draw_line (line, color):
+def draw_line(line, color):
     rho, theta = line
     a = np.cos(theta)
     b = np.sin(theta)
