@@ -2,13 +2,16 @@ import numpy as np
 import cv2
 from scipy import ndimage as ndi
 from djitellopy import Tello
+import time
 
 from matplotlib import pyplot as plt
 
 tello = Tello()
 connected = False
 
+
 img = cv2.imread('test (7).jpg')
+
 
 lower_white = np.array([170, 170, 170])
 upper_white = np.array([255, 255, 255])
@@ -31,19 +34,19 @@ except:
 
 def find_lines ():
     global img
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    smooth = ndi.filters.median_filter(gray, size=2)
-    cv2.imshow("SMOOTHED", smooth)
-    cv2.waitKey(0)
+    #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #smooth = ndi.filters.median_filter(gray, size=2)
+    #cv2.imshow("SMOOTHED", smooth)
+    #cv2.waitKey(0)
     #edges = smooth > 180 #180
     edges = cv2.Canny(img, 100, 200)
-
+    """
     plt.subplot(121), plt.imshow(img, cmap='gray')
     plt.title('Original Image'), plt.xticks([]), plt.yticks([])
     plt.subplot(122), plt.imshow(edges, cmap='gray')
     plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
     plt.show()
-
+    """
     # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
     lines = cv2.HoughLines(edges.astype(np.uint8), .3, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
@@ -65,7 +68,7 @@ def corner_dist():
     else:
         elevation = 100
     dist = elevation / np.tan(camera_angle)
-    print("Distance from intersection: " + str(dist))
+    #print("Distance from intersection: " + str(dist))
     return dist
 
 
@@ -101,7 +104,7 @@ def group_lines (lines, itterations):
 def get_closest_line (lines):
     #print(img.shape)
     y0, x0, c = img.shape
-    print(x0,y0)
+    #print(x0,y0)
     draw_point([x0/2, y0/2], (255,0,255))
     distances = []
     # open
@@ -110,7 +113,7 @@ def get_closest_line (lines):
         y = np.sin(line[1]) * line[0]
         dist = abs(np.cos(y - y0/2) - np.sin(x - x0/2))
         distances.append(dist)
-        print(dist)
+        #print(dist)
     index_min = min(range(len(distances)), key=distances.__getitem__)
     closest_line = lines[index_min]
     return closest_line
@@ -128,7 +131,6 @@ def check_intersection(line1, line2):
     a1 = np.array([[ np.cos(the1), np.sin(the1) ], [ np.cos(the2), np.sin(the2) ]])
     b1 = np.array([[rho1], [rho2]])
 
-    # TODO: Figure out why it finds intersections where there are no lines
     try:
         sol = np.linalg.solve(a1, b1).T[0]
         return sol
@@ -191,11 +193,15 @@ def draw_lines (lines, color):
     for line in lines:
         draw_line(line, color)
 
+startTime = time.time()
+
 lines = find_lines()
 lines = group_lines(lines, len(lines) * 10)
 close_line = get_closest_line(lines)
 
 intersections = find_intersections(lines)
+
+print(time.time() - startTime)
 
 draw_lines(lines, (0,0,255))
 draw_line(close_line, (0,255,0))
