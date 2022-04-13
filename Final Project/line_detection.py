@@ -95,13 +95,13 @@ def group_similar(data, axis):
     return tmp
 
 
-def group_lines (lines, itterations):
+def group_lines(lines, itterations):
     for i in range(itterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
 
-def get_closest_line (lines):
+def get_closest_line(lines):
     #print(img.shape)
     y0, x0, c = img.shape
     #print(x0,y0)
@@ -120,6 +120,8 @@ def get_closest_line (lines):
 
 
 def check_intersection(line1, line2):
+    # Intersection min angle tolerance
+    min_angle = 0.05   # About 10 degrees
     # Line format is [rho, theta]
     rho1 = line1[0]
     rho2 = line2[0]
@@ -133,7 +135,14 @@ def check_intersection(line1, line2):
 
     try:
         sol = np.linalg.solve(a1, b1).T[0]
-        return sol
+        sol_angle = np.tan(sol[0]/sol[1])
+        angle = (the1 - sol_angle) + (the2 - sol_angle)
+        angle = np.abs(min(angle, np.pi/2 - angle))
+
+        if angle >= min_angle:
+            return sol
+        else:
+            return False
     except np.linalg.LinAlgError:
         return False
 
@@ -158,10 +167,18 @@ def find_intersections(lines):
     for i in range(len(lines)):
         for j in range(i+1, len(lines)):
             pt = check_intersection(lines[i], lines[j])
-            #print(pt)
+            print(pt)
             if pt is not False:
                 if point_within_frame(pt, img):
-                    found_pts.append(pt)
+                    if not found_pts:
+                        found_pts = [pt]
+                    else:
+                        dist = []
+                        for point in found_pts:
+                            dist = np.sum(np.square(pt - point))
+                        if min([dist, 10000]) > 10:
+                            found_pts.append(pt)
+
     return found_pts
 
 
@@ -200,6 +217,7 @@ lines = group_lines(lines, len(lines) * 10)
 close_line = get_closest_line(lines)
 
 intersections = find_intersections(lines)
+print(intersections)
 
 print(time.time() - startTime)
 
