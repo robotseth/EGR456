@@ -6,6 +6,8 @@ from djitellopy import Tello
 tello = Tello()
 connected = False
 
+img = cv2.imread('test (6).jpg')
+
 try:
     #tello.connect()
     raise ValueError('Not trying to connect to drone - uncomment line above')
@@ -14,26 +16,26 @@ try:
     # connect opencv to live video
 except:
     print("Failed to connect to tello")
-    img = cv2.imread('test1.png')
+
+
+def find_lines ():
+    global img
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     smooth = ndi.filters.median_filter(gray, size=2)
     cv2.imshow("SMOOTHED", smooth)
     cv2.waitKey(0)
+    edges = smooth > 200 #180
+    #draw_lines(edges,(255,255,0))
+    # edges,1,np.pi/180, 200
+    lines = cv2.HoughLines(edges.astype(np.uint8), .3, np.pi / 180, 100) #edges.astype(np.uint8), .4, np.pi / 180, 120
+    #lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
+    # formats lines as an array of rho theta pairs
+    tmp = np.empty(shape=(1, 2))
+    for line in range(len(lines)):
+        tmp = np.vstack((tmp, lines[line][0]))
+    tmp = np.delete(tmp, (0), axis=0)
+    return tmp
 
-edges = smooth > 180
-
-lines = cv2.HoughLines(edges.astype(np.uint8), .4, np.pi/180, 120)
-#lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi/180, 700)
-
-# formats lines as an array of rho theta pairs
-tmp = np.empty(shape=(1,2))
-for line in range(len(lines)):
-    tmp = np.vstack((tmp,lines[line][0]))
-tmp = np.delete(tmp, (0), axis=0)
-lines = tmp
-
-rho_threshold = 5
-theta_threshold = .1
 
 def corner_dist ():
     global connected
@@ -47,7 +49,10 @@ def corner_dist ():
     print("Distance from intersection: " + str(dist))
     return dist
 
+
 def group_similar (data, axis):
+    rho_threshold = 10
+    theta_threshold = .1
     data = data[data[:, axis].argsort()] # sorts array
     tmp = np.zeros(shape=(1,2))
     rows, columns = data.shape
@@ -66,6 +71,7 @@ def group_similar (data, axis):
     tmp = np.vstack((tmp, c))
     tmp = np.delete(tmp, (0), axis=0)
     return tmp
+
 
 def group_lines (lines, itterations):
     for i in range(itterations):
@@ -87,6 +93,7 @@ def get_closest_line (lines):
     index_min = min(range(len(distances)), key=distances.__getitem__)
     closest_line = lines[index_min]
     return closest_line
+
 
 def check_intersection(line1, line2):
     # Line format is [rho, theta]
@@ -132,17 +139,19 @@ def find_intersections(lines):
         if pt is not False:
             if point_within_frame(pt, img):
                 found_pts.append(pt)
-
     return found_pts
+
 
 def draw_point (point, color):
     pt_x = int(np.round(point[0]))
     pt_y = int(np.round(point[1]))
     cv2.circle(img, (pt_x, pt_y), radius=2, color=(color), thickness=2)
-    
+
+
 def draw_points (points, color):
     for point in points:
         draw_point(point, color)
+
 
 def draw_line (line, color):
     rho, theta = line
@@ -161,8 +170,8 @@ def draw_lines (lines, color):
     for line in lines:
         draw_line(line, color)
 
-
-lines = group_lines(lines, 40)
+lines = find_lines()
+lines = group_lines(lines, 400)
 close_line = get_closest_line(lines)
 
 intersections = find_intersections(lines)
