@@ -46,7 +46,7 @@ def find_lines ():
 
     # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
-    lines = cv2.HoughLines(edges.astype(np.uint8), .7, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
+    lines = cv2.HoughLines(edges.astype(np.uint8), .3, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
     # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
     tmp = np.empty(shape=(1, 2))
@@ -192,7 +192,7 @@ def draw_lines (lines, color):
         draw_line(line, color)
 
 lines = find_lines()
-lines = group_lines(lines, 400)
+lines = group_lines(lines, len(lines) * 10)
 close_line = get_closest_line(lines)
 
 intersections = find_intersections(lines)
