@@ -9,15 +9,7 @@ from matplotlib import pyplot as plt
 tello = Tello()
 connected = False
 
-
-img = cv2.imread('test (8).jpg')
-
-
-lower_white = np.array([170, 170, 170])
-upper_white = np.array([255, 255, 255])
-
-mask = cv2.inRange(img, lower_white, upper_white)
-img = cv2.bitwise_and(img, img, mask=mask)
+#img = cv2.imread('test (7).jpg')
 
 try:
     #tello.connect()
@@ -29,13 +21,16 @@ except:
     print("Failed to connect to tello")
 
 
-def find_lines ():
-    global img
+def find_lines (img):
+    lower_white = np.array([170, 170, 170])
+    upper_white = np.array([255, 255, 255])
     #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     #smooth = ndi.filters.median_filter(gray, size=2)
     #cv2.imshow("SMOOTHED", smooth)
     #cv2.waitKey(0)
     #edges = smooth > 180 #180
+    mask = cv2.inRange(img, lower_white, upper_white)
+    img = cv2.bitwise_and(img, img, mask=mask)
     edges = cv2.Canny(img, 100, 200)
     """
     plt.subplot(121), plt.imshow(img, cmap='gray')
@@ -50,11 +45,13 @@ def find_lines ():
     # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
     tmp = np.empty(shape=(1, 2))
-    for line in range(len(lines)):
-        tmp = np.vstack((tmp, lines[line][0]))
-    tmp = np.delete(tmp, (0), axis=0)
+    try:
+        for line in range(len(lines)):
+            tmp = np.vstack((tmp, lines[line][0]))
+        tmp = np.delete(tmp, (0), axis=0)
+    except:
+        print("no lines detected")
     return tmp
-
 
 def corner_dist():
     global connected
@@ -98,17 +95,17 @@ def group_lines(lines, itterations):
     return lines
 
 
-def get_closest_line(lines):
+def get_closest_line(lines, img):
     #print(img.shape)
     y0, x0, c = img.shape
     #print(x0,y0)
-    draw_point([x0/2, y0/2], (255,0,255))
+    draw_point([x0/2, y0/2], (255,0,255), img)
     distances = []
     # open
     for line in lines:
         x = np.cos(line[1]) * line[0]
         y = np.sin(line[1]) * line[0]
-        dist = abs(np.cos(y - y0/2) - np.sin(x - x0/2))
+        dist = abs(np.cos(line[1]+np.pi/2)*(y - y0/2) - np.sin(line[1]+np.pi/2)*(x - x0/2))
         distances.append(dist)
         #print(dist)
     index_min = min(range(len(distances)), key=distances.__getitem__)
@@ -118,7 +115,7 @@ def get_closest_line(lines):
 
 def check_intersection(line1, line2):
     # Intersection min angle tolerance
-    min_angle = 0.05   # About 10 degrees
+    min_angle = .4   # About 10 degrees
     # Line format is [rho, theta]
     rho1 = line1[0]
     rho2 = line2[0]
@@ -135,6 +132,7 @@ def check_intersection(line1, line2):
         sol_angle = np.tan(sol[0]/sol[1])
         angle = (the1 - sol_angle) + (the2 - sol_angle)
         angle = np.abs(min(angle, np.pi/2 - angle))
+        print("Angle: " + str(angle))
 
         if angle >= min_angle:
             return sol
@@ -157,8 +155,7 @@ def point_within_frame(point, img_in):
         return False
 
 
-def find_intersections(lines):
-    global img
+def find_intersections(lines, img):
     # Iterate through half of the lines
     found_pts = []
     for i in range(len(lines)):
@@ -179,18 +176,18 @@ def find_intersections(lines):
     return found_pts
 
 
-def draw_point(point, color):
+def draw_point(point, color, img):
     pt_x = int(np.round(point[0]))
     pt_y = int(np.round(point[1]))
     cv2.circle(img, (pt_x, pt_y), radius=2, color=(color), thickness=2)
 
 
-def draw_points(points, color):
+def draw_points(points, color, img):
     for point in points:
-        draw_point(point, color)
+        draw_point(point, color, img)
 
 
-def draw_line(line, color):
+def draw_line(line, color, img):
     rho, theta = line
     a = np.cos(theta)
     b = np.sin(theta)
@@ -203,28 +200,32 @@ def draw_line(line, color):
     cv2.line(img,(x1,y1),(x2,y2),(color),2)
 
 
-def draw_lines (lines, color):
+def draw_lines (lines, color, img):
     for line in lines:
-        draw_line(line, color)
+        draw_line(line, color, img)
 
-startTime = time.time()
 
-lines = find_lines()
-lines = group_lines(lines, len(lines) * 10)
-close_line = get_closest_line(lines)
+cap = cv2.VideoCapture(0)
+while(1):
 
-intersections = find_intersections(lines)
-print(intersections)
+    # Take each frame
+    _, frame = cap.read()
+    """
+    lines = find_lines(frame)
+    lines = group_lines(lines, len(lines) * 10)
+    close_line = get_closest_line(lines, frame)
 
-duration = time.time() - startTime
-print(duration)
-print("FPS: " + str(1 / duration))
+    intersections = find_intersections(lines, frame)
+    print(intersections)
 
-draw_lines(lines, (0,0,255))
-draw_line(close_line, (0,255,0))
-draw_points(intersections, (255,0,0))
+    duration = time.time() - startTime
+    print(duration)
+    print("FPS: " + str(1 / duration))
 
-# Show the result
-cv2.imshow("Line Detection", img)
-cv2.waitKey(0)
+    draw_lines(lines, (0,0,255), frame)
+    draw_line(close_line, (0,255,0), frame)
+    draw_points(intersections, (255,0,0), frame)
+    # Show the result
+    """
+    cv2.imshow("Line Detection", frame)
 cv2.destroyAllWindows()
