@@ -115,7 +115,7 @@ def get_closest_line(lines, img):
 
 def check_intersection(line1, line2):
     # Intersection min angle tolerance
-    min_angle = .4   # About 10 degrees
+    min_angle = 5*(np.pi/180)
     # Line format is [rho, theta]
     rho1 = line1[0]
     rho2 = line2[0]
@@ -124,15 +124,17 @@ def check_intersection(line1, line2):
 
     # A = [cos θ1  sin θ1]   b = |r1|   X = |x|
     #     [cos θ2  sin θ2]       |r2|       |y|
-    a1 = np.array([[ np.cos(the1), np.sin(the1) ], [ np.cos(the2), np.sin(the2) ]])
+    a1 = np.array([[ np.cos(the1), np.sin(the1) ],
+                   [ np.cos(the2), np.sin(the2) ]])
     b1 = np.array([[rho1], [rho2]])
 
     try:
         sol = np.linalg.solve(a1, b1).T[0]
-        sol_angle = np.tan(sol[0]/sol[1])
-        angle = (the1 - sol_angle) + (the2 - sol_angle)
-        angle = np.abs(min(angle, np.pi/2 - angle))
-        #print("Angle: " + str(angle))
+        #sol_angle = np.arctan2(sol[1], sol[0])
+        #angle = (np.pi/2 - (the1 - sol_angle)) + (np.pi/2 - (the2 - sol_angle))
+        angle = np.pi - (max(the1, the2) - min(the1,the2))
+        angle = np.abs(min(angle, np.pi - angle))
+        print("Angle: " + str(angle*(180/np.pi)))
 
         if angle >= min_angle:
             return sol
