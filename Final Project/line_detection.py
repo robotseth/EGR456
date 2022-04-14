@@ -204,6 +204,52 @@ def draw_lines (lines, color, img):
     for line in lines:
         draw_line(line, color, img)
 
+def get_line_angle(line):
+
+    return angle
+
+def get_line_x(line, center):
+    x0, y0 = center
+    x = np.cos(line[1]) * line[0]
+    y = np.sin(line[1]) * line[0]
+    #rho = line[0] * (-1 * (line[0] < 0))
+
+    dist = abs(np.cos(line[1] + np.pi / 2) * (y - y0 / 2) - np.sin(line[1] + np.pi / 2) * (x - x0 / 2))
+
+    theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
+    #print(theta)
+    print(line[0])
+    dist_x = np.cos(theta) * dist
+    return dist_x
+
+def fly_drone(lines, img):
+    global connected
+    # update elevation to keep it constant
+    # for now to this:
+    y_vel = 0
+
+    vel_y = 10
+    Px = 1
+    Ptheta = 1
+    x, y, c = img.shape
+    x = x/2
+    y = y/2
+
+    des_theta = np.pi / 2
+    des_x = x / 2
+    line = get_closest_line(lines, img)
+    pos_theta = line[1] - np.pi/2
+    vel_theta = Ptheta + (des_theta - pos_theta)
+    pos_x = get_line_x(line, [x, y])
+    vel_x = Px * (des_x - pos_x)
+    if connected:
+        tello.send_rc_control(vel_x, vel_y, y_vel, vel_theta)
+    else:
+        #print("Vel x: " + str(vel_x))
+        #print("Vel theta: " + str(vel_theta))
+        #print("Line x: " + str(get_line_x(line, [x, y])))
+        pass
+
 cap = cv2.VideoCapture(0)
 
 
@@ -229,6 +275,8 @@ while True:
     draw_lines(lines, (0, 0, 255), frame)
     draw_line(close_line, (0, 255, 0), frame)
     draw_points(intersections, (255, 0, 0), frame)
+
+    fly_drone(lines, frame)
     # Show the result
 
     # Display the resulting frame
@@ -237,4 +285,4 @@ while True:
         break
 # When everything done, release the capture
 cap.release()
-cv.destroyAllWindows()
+cv2.destroyAllWindows()
