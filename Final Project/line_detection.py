@@ -22,7 +22,7 @@ except:
 
 
 def find_lines (img):
-    lower_white = np.array([170, 170, 170])
+    lower_white = np.array([200, 200, 200])
     upper_white = np.array([255, 255, 255])
     #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     #smooth = ndi.filters.median_filter(gray, size=2)
@@ -132,7 +132,7 @@ def check_intersection(line1, line2):
         sol_angle = np.tan(sol[0]/sol[1])
         angle = (the1 - sol_angle) + (the2 - sol_angle)
         angle = np.abs(min(angle, np.pi/2 - angle))
-        print("Angle: " + str(angle))
+        #print("Angle: " + str(angle))
 
         if angle >= min_angle:
             return sol
@@ -161,7 +161,7 @@ def find_intersections(lines, img):
     for i in range(len(lines)):
         for j in range(i+1, len(lines)):
             pt = check_intersection(lines[i], lines[j])
-            print(pt)
+            #print(pt)
             if pt is not False:
                 if point_within_frame(pt, img):
                     if not found_pts:
@@ -204,28 +204,37 @@ def draw_lines (lines, color, img):
     for line in lines:
         draw_line(line, color, img)
 
-
 cap = cv2.VideoCapture(0)
-while(1):
 
-    # Take each frame
-    _, frame = cap.read()
-    """
+
+if not cap.isOpened():
+    print("Cannot open camera")
+    exit()
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+    # if frame is read correctly ret is True
+    if not ret:
+        print("Can't receive frame (stream end?). Exiting ...")
+        break
+    # Our operations on the frame come here
+
     lines = find_lines(frame)
-    lines = group_lines(lines, len(lines) * 10)
+    lines = group_lines(lines, np.clip((len(lines) * 10),0,1000))
     close_line = get_closest_line(lines, frame)
 
     intersections = find_intersections(lines, frame)
-    print(intersections)
+    #print(intersections)
 
-    duration = time.time() - startTime
-    print(duration)
-    print("FPS: " + str(1 / duration))
-
-    draw_lines(lines, (0,0,255), frame)
-    draw_line(close_line, (0,255,0), frame)
-    draw_points(intersections, (255,0,0), frame)
+    draw_lines(lines, (0, 0, 255), frame)
+    draw_line(close_line, (0, 255, 0), frame)
+    draw_points(intersections, (255, 0, 0), frame)
     # Show the result
-    """
-    cv2.imshow("Line Detection", frame)
-cv2.destroyAllWindows()
+
+    # Display the resulting frame
+    cv2.imshow('frame', frame)
+    if cv2.waitKey(1) == ord('q'):
+        break
+# When everything done, release the capture
+cap.release()
+cv.destroyAllWindows()
