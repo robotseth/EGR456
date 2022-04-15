@@ -213,24 +213,35 @@ def get_line_angle(line):
 
     pass
 
+def pol2cart(rho, phi):
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return(x, y)
 
 def get_line_x(line, img):
-    x0, y0 = center
-    x = np.cos(line[1]) * line[0]
-    y = np.sin(line[1]) * line[0]
-    #rho = line[0] * (-1 * (line[0] < 0))
-
-    try:
-        line[0]/abs(line[0]) * cos(line[1])
-
-    dist = abs(np.cos(line[1] + np.pi / 2) * (y - y0 / 2) - np.sin(line[1] + np.pi / 2) * (x - x0 / 2))
-
-    theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
+    x0, y0, c = img.shape
+    x0 = int(x0/2)
+    y0 = int(y0/2)
+    rho_0 = np.sqrt(x0 ** 2 + y0 ** 2)
+    phi_0 = np.arctan2(y0, x0)
+    # center of the image = rho_0, phi_0
+    rho_1 = line[0]
+    phi_1 = line[1]
+    rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1))
+    line_x, line_y = pol2cart(rho_p, phi_1)
+    line_x = int(line_x)
+    line_y = int(line_y)
+    #print(line_x)
+    draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
+    #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
-    print(line[0])
-    dist_x = np.cos(theta) * dist
-    return pos_x
+    return line_x
 
+def draw_line_segment(point1,point2,color,img):
+    x1, y1 = point1
+    x2, y2 = point2
+    line_thickness = 2
+    cv2.line(img, (x1, y1), (x2, y2), color, thickness=line_thickness)
 
 """
 def get_line_x(line, center):
