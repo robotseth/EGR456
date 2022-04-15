@@ -21,6 +21,7 @@ except:
     print("Failed to connect to tello")
 
 
+
 def find_lines (img):
     lower_white = np.array([200, 200, 200])
     upper_white = np.array([255, 255, 255])
@@ -42,6 +43,7 @@ def find_lines (img):
     # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
     lines = cv2.HoughLines(edges.astype(np.uint8), .2, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
+    #circles = cv2.HoughCircles(edges.astype(np.uint8), .2, np.pi / 180, 40)
     # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
     tmp = np.empty(shape=(1, 2))
@@ -134,7 +136,7 @@ def check_intersection(line1, line2):
         #angle = (np.pi/2 - (the1 - sol_angle)) + (np.pi/2 - (the2 - sol_angle))
         angle = np.pi - (max(the1, the2) - min(the1,the2))
         angle = np.abs(min(angle, np.pi - angle))
-        print("Angle: " + str(angle*(180/np.pi)))
+        #print("Angle: " + str(angle*(180/np.pi)))
 
         if angle >= min_angle:
             return sol
@@ -203,18 +205,23 @@ def draw_line(line, color, img):
 
 
 def draw_lines (lines, color, img):
+
     for line in lines:
         draw_line(line, color, img)
 
 def get_line_angle(line):
 
-    return angle
+    pass
 
-def get_line_x(line, center):
+
+def get_line_x(line, img):
     x0, y0 = center
     x = np.cos(line[1]) * line[0]
     y = np.sin(line[1]) * line[0]
     #rho = line[0] * (-1 * (line[0] < 0))
+
+    try:
+        line[0]/abs(line[0]) * cos(line[1])
 
     dist = abs(np.cos(line[1] + np.pi / 2) * (y - y0 / 2) - np.sin(line[1] + np.pi / 2) * (x - x0 / 2))
 
@@ -222,8 +229,23 @@ def get_line_x(line, center):
     #print(theta)
     print(line[0])
     dist_x = np.cos(theta) * dist
-    return dist_x
+    return pos_x
 
+
+"""
+def get_line_x(line, center):
+    x0, y0 = center
+    x = np.cos(line[1]) * line[0]
+    y = np.sin(line[1]) * line[0]
+    #rho = line[0] * (-1 * (line[0] < 0))
+    dist = abs(np.cos(line[1] + np.pi / 2) * (y - y0 / 2) - np.sin(line[1] + np.pi / 2) * (x - x0 / 2))
+
+    theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
+    #print(theta)
+    print(line[0])
+    dist_x = np.cos(theta) * dist
+    return dist_x
+"""
 def fly_drone(lines, img):
     global connected
     # update elevation to keep it constant
@@ -242,7 +264,7 @@ def fly_drone(lines, img):
     line = get_closest_line(lines, img)
     pos_theta = line[1] - np.pi/2
     vel_theta = Ptheta + (des_theta - pos_theta)
-    pos_x = get_line_x(line, [x, y])
+    pos_x = get_line_x(line, frame)
     vel_x = Px * (des_x - pos_x)
     if connected:
         tello.send_rc_control(vel_x, vel_y, y_vel, vel_theta)
@@ -277,6 +299,12 @@ while True:
     draw_lines(lines, (0, 0, 255), frame)
     draw_line(close_line, (0, 255, 0), frame)
     draw_points(intersections, (255, 0, 0), frame)
+
+    x, y, c = frame.shape
+    draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
+
+
+
 
     fly_drone(lines, frame)
     # Show the result
