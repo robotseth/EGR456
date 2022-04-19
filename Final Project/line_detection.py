@@ -252,9 +252,11 @@ def detect_center_intersection(intersections, img):
             #print("Intersection centered")
             return intersection
         else:
-            return 
+            return False
 
-
+def get_angle(line_1, line_2):
+    angle = line_1[1] - line_2[1]
+    return angle
 """
 def get_line_x(line, center):
     x0, y0 = center
@@ -275,7 +277,10 @@ def fly_drone(lines, intersections, img):
     # for now to this:
     z = tello.get_height()
 
-    deg = 0 # amount to rotate after seeing a corner
+    deg = 90 # amount to rotate after seeing a corner
+    # this would ideally change depending on the angle between the lines at the intersection
+    # this angle in not easy to get without making many changes, however
+    # for now, just leave it as a small value that we may need to change manually for each shape
 
     vel_x = 0
     vel_y = 10
