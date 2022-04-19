@@ -249,8 +249,8 @@ def detect_center_intersection(intersections, img):
     y0 = int(y0/2)
     for intersection in intersections:
         if np.sqrt((intersection[0] - y0)**2 + (intersection[1] - x0)**2) < 20:
-            print("Intersection centered")
-            return intersection
+            #print("Intersection centered")
+            return True
 
 
 """
@@ -267,28 +267,39 @@ def get_line_x(line, center):
     dist_x = np.cos(theta) * dist
     return dist_x
 """
-def fly_drone(lines, img):
+def fly_drone(lines, intersections, img):
     global connected
     # update elevation to keep it constant
     # for now to this:
-    y_vel = 0
-
+    z = tello.get_height()
+    vel_x = 0
     vel_y = 10
+    vel_z = 0
+    vel_theta = 0
     Px = 1
+    Pz = 1
     Ptheta = 1
     x, y, c = img.shape
-    x = x/2
-    y = y/2
+    x0 = x/2
 
+    # sets goal positions for the P control loop
     des_theta = np.pi / 2
-    des_x = x / 2
-    line = get_closest_line(lines, img)
-    pos_theta = line[1] - np.pi/2
-    vel_theta = Ptheta + (des_theta - pos_theta)
-    pos_x = get_line_x(line, frame)
-    vel_x = Px * (des_x - pos_x)
+    des_x = x0
+    des_z = 50
+
+    # if an intersection is detected at the center of the frame, move above it
+    if detect_center_intersection(intersections, frame):
+        dist = corner_dist()
+        tello.move_forward(dist)
+    else: # if an intersection is not centered on the frame, use line-based P control
+        line = get_closest_line(lines, img)
+        pos_theta = line[1] - np.pi / 2
+        vel_theta = Ptheta + (des_theta - pos_theta)
+        pos_x = get_line_x(line, frame)
+        vel_x = Px * (des_x - pos_x)
+        vel_z = Pz * (des_z - z)
     if connected:
-        tello.send_rc_control(vel_x, vel_y, y_vel, vel_theta)
+        tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
     else:
         #print("Vel x: " + str(vel_x))
         #print("Vel theta: " + str(vel_theta))
@@ -308,29 +319,26 @@ while True:
     if not ret:
         print("Can't receive frame (stream end?). Exiting ...")
         break
-    # Our operations on the frame come here
 
+    # finds lines
     lines = find_lines(frame)
     lines = group_lines(lines, np.clip((len(lines) * 10),0,1000))
     close_line = get_closest_line(lines, frame)
 
+    # visualize lines and intersections
     intersections = find_intersections(lines, frame)
-    #print(intersections)
-
     draw_lines(lines, (0, 0, 255), frame)
     draw_line(close_line, (0, 255, 0), frame)
     draw_points(intersections, (255, 0, 0), frame)
 
+
+    # control the drone
+    fly_drone(lines, intersections, frame)
+
+
+    # display lines
     x, y, c = frame.shape
     draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
-    detect_center_intersection(intersections, frame)
-
-
-
-
-    fly_drone(lines, frame)
-    # Show the result
-
     # Display the resulting frame
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) == ord('q'):
