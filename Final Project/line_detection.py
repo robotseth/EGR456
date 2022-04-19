@@ -250,7 +250,9 @@ def detect_center_intersection(intersections, img):
     for intersection in intersections:
         if np.sqrt((intersection[0] - y0)**2 + (intersection[1] - x0)**2) < 20:
             #print("Intersection centered")
-            return True
+            return intersection
+        else:
+            return 
 
 
 """
@@ -272,6 +274,9 @@ def fly_drone(lines, intersections, img):
     # update elevation to keep it constant
     # for now to this:
     z = tello.get_height()
+
+    deg = 0 # amount to rotate after seeing a corner
+
     vel_x = 0
     vel_y = 10
     vel_z = 0
@@ -291,6 +296,7 @@ def fly_drone(lines, intersections, img):
     if detect_center_intersection(intersections, frame):
         dist = corner_dist()
         tello.move_forward(dist)
+        tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1] - np.pi / 2
