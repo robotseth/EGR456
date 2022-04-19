@@ -231,8 +231,8 @@ def get_line_x(line, img):
     line_x, line_y = pol2cart(rho_p, phi_1)
     line_x = int(line_x)
     line_y = int(line_y)
-    #print(line_x)
-    draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
+    print(line_x)
+    #draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
     #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
     return line_x
@@ -242,6 +242,16 @@ def draw_line_segment(point1,point2,color,img):
     x2, y2 = point2
     line_thickness = 2
     cv2.line(img, (x1, y1), (x2, y2), color, thickness=line_thickness)
+
+def detect_center_intersection(intersections, img):
+    x0, y0, c = img.shape
+    x0 = int(x0/2)
+    y0 = int(y0/2)
+    for intersection in intersections:
+        if np.sqrt((intersection[0] - y0)**2 + (intersection[1] - x0)**2) < 20:
+            print("Intersection centered")
+            return intersection
+
 
 """
 def get_line_x(line, center):
@@ -313,6 +323,7 @@ while True:
 
     x, y, c = frame.shape
     draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
+    detect_center_intersection(intersections, frame)
 
 
 
