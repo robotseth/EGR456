@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 tello = Tello()
 connected = False
 
-#img = cv2.imread('test (7).jpg')
+# img = cv2.imread('test (7).jpg')
 
 try:
     #tello.connect()
@@ -19,7 +19,6 @@ try:
     # connect opencv to live video
 except:
     print("Failed to connect to tello")
-
 
 
 def find_lines (img):
@@ -187,7 +186,6 @@ def find_intersections(lines, img):
                             dist = np.sum(np.square(pt - point))
                         if min([dist, 10000]) > 10:
                             found_pts.append(pt)
-
     return found_pts
 
 
@@ -212,10 +210,10 @@ def draw_line(line, color, img):
     y1 = int(y0 + 1000*(a))
     x2 = int(x0 - 1000*(-b))
     y2 = int(y0 - 1000*(a))
-    cv2.line(img,(x1,y1),(x2,y2),(color),2)
+    cv2.line(img, (x1, y1), (x2, y2), (color), 2)
 
 
-def draw_lines (lines, color, img):
+def draw_lines(lines, color, img):
 
     for line in lines:
         draw_line(line, color, img)
@@ -233,7 +231,7 @@ def draw_line_segment(point1,point2,color,img):
 def pol2cart(rho, phi):
     x = rho * np.cos(phi)
     y = rho * np.sin(phi)
-    return(x, y)
+    return (x, y)
 
 
 # finds the x_displacement of the line relative to the center of the frame
@@ -292,7 +290,11 @@ def fly_drone(lines, intersections, img):
     global connected
     # update elevation to keep it constant
     # for now to this:
-    z = tello.get_height()
+
+    if connected:
+        z = tello.get_height()
+    else:
+        z = 50
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -350,7 +352,7 @@ while True:
 
     # finds lines
     lines = find_lines(frame)
-    lines = group_lines(lines, np.clip((len(lines) * 10),0,1000))
+    lines = group_lines(lines, np.clip((len(lines) * 10), 0, 1000))
     close_line = get_closest_line(lines, frame)
 
     # visualize lines and intersections
@@ -359,10 +361,8 @@ while True:
     draw_line(close_line, (0, 255, 0), frame)
     draw_points(intersections, (255, 0, 0), frame)
 
-
     # control the drone
     fly_drone(lines, intersections, frame)
-
 
     # display lines
     x, y, c = frame.shape
