@@ -229,27 +229,33 @@ def draw_line_segment(point1,point2,color,img):
 
 # converts polar to cartesian coordinates
 def pol2cart(rho, phi):
-    x = rho * np.cos(phi)
-    y = rho * np.sin(phi)
+    x = rho * np.sin(phi)
+    y = rho * np.cos(phi)
     return (x, y)
 
 
 # finds the x_displacement of the line relative to the center of the frame
 def get_line_x(line, img):
-    x0, y0, c = img.shape
-    x0 = int(x0/2)
-    y0 = int(y0/2)
-    rho_0 = np.sqrt(x0 ** 2 + y0 ** 2)
-    phi_0 = np.arctan2(y0, x0)
+    width, height, c = img.shape
+    x0 = int(width/2)
+    y0 = int(height/2)
+    draw_point((y0, x0), (255, 255, 0), img)
+    l = np.sqrt(x0 ** 2 + y0 ** 2)
+    phi = np.arctan2(y0, x0)
     # center of the image = rho_0, phi_0
-    rho_1 = line[0]
-    phi_1 = line[1]
-    rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1))
-    line_x, line_y = pol2cart(rho_p, np.pi/2 - phi_1) # pol2cart(rho_p, phi_1)
+    rho = line[0]
+    the = line[1]
+    rho_p = rho - l*np.cos(abs(the - phi))
+    print(rho_p, the*(180/np.pi))
+    line_x, line_y = pol2cart(rho_p, np.pi/2 - the) # pol2cart(rho_p, phi_1)
     line_x = int(line_x + x0)
     line_y = int(line_y + y0)
     #print(line_x)
-    draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
+    try:
+        draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
+    except:
+        print("Line segment error")
+        print(line_x, line_y, type(line_x), type(line_y))
     #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
     return line_x
@@ -262,7 +268,7 @@ def detect_center_intersection(intersections, img):
     for intersection in intersections:
         if np.sqrt((intersection[0] - y0)**2 + (intersection[1] - x0)**2) < 20:
             #print("Intersection centered")
-            return intersection
+            return True
         else:
             return False
 
