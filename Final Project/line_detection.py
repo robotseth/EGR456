@@ -245,11 +245,11 @@ def get_line_x(line, img):
     rho_1 = line[0]
     phi_1 = line[1]
     rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1))
-    line_x, line_y = pol2cart(rho_p, phi_1)
-    line_x = int(line_x)
-    line_y = int(line_y)
-    print(line_x)
-    #draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
+    line_x, line_y = pol2cart(rho_p, np.pi/2 - phi_1) # pol2cart(rho_p, phi_1)
+    line_x = int(line_x + x0)
+    line_y = int(line_y + y0)
+    #print(line_x)
+    draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
     #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
     return line_x
@@ -367,6 +367,8 @@ while True:
     # display lines
     x, y, c = frame.shape
     draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
+    #draw_point([0,0], [255,255,0], frame)
+    #draw_point([0, 10], [255, 255, 0], frame)
     # Display the resulting frame
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) == ord('q'):
