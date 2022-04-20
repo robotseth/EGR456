@@ -55,6 +55,9 @@ def find_lines (img):
         print("no lines detected")
     return tmp
 
+
+# gets the distance of the drone to an intersection
+# assumes the intersection is straight in front of the drone and it is centered in the camera frame
 def corner_dist():
     global connected
     # improve angle with accelerometer reading
@@ -68,6 +71,7 @@ def corner_dist():
     return dist
 
 
+# combines lines that are close to each other in a very inefficient way
 def group_similar(data, axis):
     rho_threshold = 15
     theta_threshold = .1
@@ -91,12 +95,14 @@ def group_similar(data, axis):
     return tmp
 
 
+# calls the group similar function a number of times to group all the lines
 def group_lines(lines, itterations):
     for i in range(itterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
 
+# finds and returns the line closest to the center of the image frame
 def get_closest_line(lines, img):
     #print(img.shape)
     y0, x0, c = img.shape
@@ -115,6 +121,8 @@ def get_closest_line(lines, img):
     return closest_line
 
 
+# checks if the intersection is between two lines that are almost parallel
+# if they are close to parallel, ignore the intersection
 def check_intersection(line1, line2):
     # Intersection min angle tolerance
     min_angle = 5*(np.pi/180)
@@ -146,6 +154,8 @@ def check_intersection(line1, line2):
         return False
 
 
+# checks if the intersection is within the camera frame
+# ignore intersections outside the frame
 def point_within_frame(point, img_in):
     imsize = img_in.shape
     xpos = point[0]
@@ -159,6 +169,7 @@ def point_within_frame(point, img_in):
         return False
 
 
+# finds the intersections between the lines found in the image and returns them
 def find_intersections(lines, img):
     # Iterate through half of the lines
     found_pts = []
@@ -209,15 +220,23 @@ def draw_lines (lines, color, img):
     for line in lines:
         draw_line(line, color, img)
 
-def get_line_angle(line):
 
-    pass
+# similar to the draw line function except it the lines are not a set long length
+def draw_line_segment(point1,point2,color,img):
+    x1, y1 = point1
+    x2, y2 = point2
+    line_thickness = 2
+    cv2.line(img, (x1, y1), (x2, y2), color, thickness=line_thickness)
 
+
+# converts polar to cartesian coordinates
 def pol2cart(rho, phi):
     x = rho * np.cos(phi)
     y = rho * np.sin(phi)
     return(x, y)
 
+
+# finds the x_displacement of the line relative to the center of the frame
 def get_line_x(line, img):
     x0, y0, c = img.shape
     x0 = int(x0/2)
@@ -237,11 +256,6 @@ def get_line_x(line, img):
     #print(theta)
     return line_x
 
-def draw_line_segment(point1,point2,color,img):
-    x1, y1 = point1
-    x2, y2 = point2
-    line_thickness = 2
-    cv2.line(img, (x1, y1), (x2, y2), color, thickness=line_thickness)
 
 def detect_center_intersection(intersections, img):
     x0, y0, c = img.shape
@@ -253,6 +267,7 @@ def detect_center_intersection(intersections, img):
             return intersection
         else:
             return False
+
 
 def get_angle(line_1, line_2):
     angle = line_1[1] - line_2[1]
@@ -271,6 +286,8 @@ def get_line_x(line, center):
     dist_x = np.cos(theta) * dist
     return dist_x
 """
+
+# main drone control function that is called regularly
 def fly_drone(lines, intersections, img):
     global connected
     # update elevation to keep it constant
