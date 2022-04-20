@@ -256,15 +256,15 @@ def get_line_x(line, img):
 
 
 def detect_center_intersection(intersections, img):
+    centered = False
     x0, y0, c = img.shape
     x0 = int(x0/2)
     y0 = int(y0/2)
     for intersection in intersections:
         if np.sqrt((intersection[0] - y0)**2 + (intersection[1] - x0)**2) < 20:
-            #print("Intersection centered")
-            return intersection
-        else:
-            return False
+            centered = True
+            break
+    return centered
 
 
 def get_angle(line_1, line_2):
