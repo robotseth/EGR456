@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from scipy import ndimage as ndi
 from djitellopy import Tello
+from simple_pid import PID
 import time
 
 from matplotlib import pyplot as plt
@@ -10,6 +11,16 @@ tello = Tello()
 connected = False
 
 # img = cv2.imread('test (7).jpg')
+""" initializes PID objects for the fly_drone() function to use """
+# pid_x.sample_time = 0.01  # Update every 0.01 seconds
+# the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
+pid_x = PID(1, 0.1, 0.05, setpoint=0)
+pid_x.output_limits = (-10, 10)
+pid_theta = PID(1, 0.1, 0.05, setpoint=0)
+pid_theta.output_limits = (-10, 10)
+pid_z = PID(1, 0.1, 0.05, setpoint=100)
+pid_z.output_limits = (-10, 10)
+
 
 try:
     #tello.connect()
@@ -309,7 +320,7 @@ def fly_drone(lines, intersections, img):
     if connected:
         z = tello.get_height()
     else:
-        z = 50
+        z = 100
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -339,10 +350,10 @@ def fly_drone(lines, intersections, img):
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1] - np.pi / 2
-        vel_theta = Ptheta + (des_theta - pos_theta)
+        vel_theta = pid_theta(pos_theta)
         pos_x = get_line_x(line, frame)
-        vel_x = Px * (des_x - pos_x)
-        vel_z = Pz * (des_z - z)
+        vel_x = pid_x(pos_x)
+        vel_z = pid_z(z)
     if connected:
         tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
     else:
@@ -357,6 +368,8 @@ cap = cv2.VideoCapture(1)
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
+
+
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
