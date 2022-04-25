@@ -102,6 +102,8 @@ def group_lines(lines, itterations):
 
 
 # finds and returns the line closest to the center of the image frame
+# length seems fine...maybe
+# angle is off
 def get_closest_line(lines, img):
     #print(img.shape)
     y0, x0, c = img.shape
@@ -159,8 +161,8 @@ def point_within_frame(point, img_in):
     imsize = img_in.shape
     xpos = point[0]
     ypos = point[1]
-    if 0 <= xpos <= imsize[0]:
-        if 0 <= ypos <= imsize[1]:
+    if 0 <= xpos <= imsize[1]:
+        if 0 <= ypos <= imsize[0]:
             return True
         else:
             return False
@@ -204,8 +206,8 @@ def draw_line(line, color, img):
     rho, theta = line
     a = np.cos(theta)
     b = np.sin(theta)
-    x0 = a*rho
-    y0 = b*rho
+    x0 = a * rho
+    y0 = b * rho
     x1 = int(x0 + 1000*(-b))
     y1 = int(y0 + 1000*(a))
     x2 = int(x0 - 1000*(-b))
@@ -246,16 +248,19 @@ def get_line_x(line, img):
     x0 = int(x0/2)
     y0 = int(y0/2)
     rho_0 = np.sqrt(x0 ** 2 + y0 ** 2)
-    phi_0 = np.arctan2(x0, y0)
+    phi_0 = np.arctan2(y0, x0)
     # center of the image = rho_0, phi_0
     rho_1 = line[0]
     phi_1 = line[1]
-    rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1))
-    line_x, line_y = pol2cart(rho_p, np.pi/2 - phi_1) # pol2cart(rho_p, phi_1)
+    rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1)) #np.cos(abs(phi_0-phi_1))
+    line_x, line_y = pol2cart(rho_p, phi_1) # pol2cart(rho_p, np.pi/2 - phi_1)
     line_x = int(line_x + x0)
     line_y = int(line_y + y0)
     #print(line_x)
-    draw_line_segment([x0, y0],[line_x, line_y],(255,255,0),img)
+    try:
+        draw_line_segment([x0, y0],[line_x, line_y],(255,255,0),img)
+    except:
+        print("Error drawing line segment")
     #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
     return line_x
@@ -364,7 +369,10 @@ while True:
     # visualize lines and intersections
     intersections = find_intersections(lines, frame)
     draw_lines(lines, (0, 0, 255), frame)
-    draw_line(close_line, (0, 255, 0), frame)
+    try:
+        draw_line(close_line, (0, 255, 0), frame)
+    except:
+        print("error drawing close line")
     draw_points(intersections, (255, 0, 0), frame)
 
     # control the drone
