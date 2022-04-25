@@ -8,7 +8,6 @@ import time
 from matplotlib import pyplot as plt
 
 tello = Tello()
-connected = False
 
 # img = cv2.imread('test (7).jpg')
 """ initializes PID objects for the fly_drone() function to use """
@@ -30,6 +29,7 @@ try:
     # connect opencv to live video
 except:
     print("Failed to connect to tello")
+    connected = False
 
 
 def find_lines (img):
