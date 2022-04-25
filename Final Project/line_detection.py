@@ -257,13 +257,17 @@ def get_line_x(line, img):
     line_x = int(line_x + x0)
     line_y = int(line_y + y0)
     #print(line_x)
+
+    x_disp = int(rho_p * np.cos(phi_1))
+
     try:
-        draw_line_segment([x0, y0],[line_x, line_y],(255,255,0),img)
+        draw_line_segment([x0, y0], [line_x, line_y], (255,255,0), img)
+        draw_line_segment([x0, y0], [x_disp + x0, y0], (200, 180, 80), img)
     except:
         print("Error drawing line segment")
     #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
-    return line_x
+    return x_disp
 
 
 def detect_center_intersection(intersections, center_size, img):
@@ -380,7 +384,7 @@ while True:
 
     # display lines
     x, y, c = frame.shape
-    draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
+    #draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
     #draw_point([0,0], [255,255,0], frame)
     #draw_point([0, 10], [255, 255, 0], frame)
     # Display the resulting frame
