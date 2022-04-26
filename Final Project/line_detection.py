@@ -2,14 +2,24 @@ import numpy as np
 import cv2
 from scipy import ndimage as ndi
 from djitellopy import Tello
+from simple_pid import PID
 import time
 
 from matplotlib import pyplot as plt
 
 tello = Tello()
-connected = False
 
 # img = cv2.imread('test (7).jpg')
+""" initializes PID objects for the fly_drone() function to use """
+# pid_x.sample_time = 0.01  # Update every 0.01 seconds
+# the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
+pid_x = PID(1, 0.1, 0.05, setpoint=0)
+pid_x.output_limits = (-10, 10)
+pid_theta = PID(1, 0.1, 0.05, setpoint=0)
+pid_theta.output_limits = (-10, 10)
+pid_z = PID(1, 0.1, 0.05, setpoint=100)
+pid_z.output_limits = (-10, 10)
+
 
 try:
     #tello.connect()
@@ -19,6 +29,7 @@ try:
     # connect opencv to live video
 except:
     print("Failed to connect to tello")
+    connected = False
 
 
 def find_lines (img):
@@ -65,7 +76,7 @@ def corner_dist():
         elevation = tello.get_height()
     else:
         elevation = 100
-    dist = elevation / np.tan(camera_angle)
+    dist = int(elevation / np.tan(camera_angle))
     #print("Distance from intersection: " + str(dist))
     return dist
 
@@ -102,6 +113,8 @@ def group_lines(lines, itterations):
 
 
 # finds and returns the line closest to the center of the image frame
+# length seems fine...maybe
+# angle is off
 def get_closest_line(lines, img):
     #print(img.shape)
     y0, x0, c = img.shape
@@ -110,8 +123,8 @@ def get_closest_line(lines, img):
     distances = []
     # open
     for line in lines:
-        x = np.cos(line[1]) * line[0]
         y = np.sin(line[1]) * line[0]
+        x = np.cos(line[1]) * line[0]
         dist = abs(np.cos(line[1]+np.pi/2)*(y - y0/2) - np.sin(line[1]+np.pi/2)*(x - x0/2))
         distances.append(dist)
         #print(dist)
@@ -159,8 +172,8 @@ def point_within_frame(point, img_in):
     imsize = img_in.shape
     xpos = point[0]
     ypos = point[1]
-    if 0 <= xpos <= imsize[0]:
-        if 0 <= ypos <= imsize[1]:
+    if 0 <= xpos <= imsize[1]:
+        if 0 <= ypos <= imsize[0]:
             return True
         else:
             return False
@@ -192,7 +205,7 @@ def find_intersections(lines, img):
 def draw_point(point, color, img):
     pt_x = int(np.round(point[0]))
     pt_y = int(np.round(point[1]))
-    cv2.circle(img, (pt_x, pt_y), radius=2, color=(color), thickness=2)
+    cv2.circle(img, [pt_x, pt_y], radius=2, color=(color), thickness=2)
 
 
 def draw_points(points, color, img):
@@ -204,8 +217,8 @@ def draw_line(line, color, img):
     rho, theta = line
     a = np.cos(theta)
     b = np.sin(theta)
-    x0 = a*rho
-    y0 = b*rho
+    x0 = a * rho
+    y0 = b * rho
     x1 = int(x0 + 1000*(-b))
     y1 = int(y0 + 1000*(a))
     x2 = int(x0 - 1000*(-b))
@@ -214,8 +227,15 @@ def draw_line(line, color, img):
 
 
 def draw_lines(lines, color, img):
-    for line in lines:
-        draw_line(line, color, img)
+    #lines = np.clip(lines, -2147483648, 2147483648)
+    try:
+        for line in lines:
+            draw_line(line, color, img)
+    except:
+        print("error drawing lines")
+        print("Type of array " + str(type(lines[0])))
+        print("Array " + str(lines[0]))
+        print("Type of first element " + str(type(lines[0])))
 
 
 # similar to the draw line function except it the lines are not a set long length
@@ -235,7 +255,7 @@ def pol2cart(rho, phi):
 
 # finds the x_displacement of the line relative to the center of the frame
 def get_line_x(line, img):
-    x0, y0, c = img.shape
+    y0, x0, c = img.shape
     x0 = int(x0/2)
     y0 = int(y0/2)
     rho_0 = np.sqrt(x0 ** 2 + y0 ** 2)
@@ -243,24 +263,31 @@ def get_line_x(line, img):
     # center of the image = rho_0, phi_0
     rho_1 = line[0]
     phi_1 = line[1]
-    rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1))
-    line_x, line_y = pol2cart(rho_p, np.pi/2 - phi_1) # pol2cart(rho_p, phi_1)
+    rho_p = rho_1 - rho_0 * np.cos(abs(phi_0-phi_1)) #np.cos(abs(phi_0-phi_1))
+    line_x, line_y = pol2cart(rho_p, phi_1) # pol2cart(rho_p, np.pi/2 - phi_1)
     line_x = int(line_x + x0)
     line_y = int(line_y + y0)
     #print(line_x)
-    draw_line_segment([y0, x0],[line_y, line_x],(255,255,0),img)
+
+    x_disp = int(rho_p * np.cos(phi_1))
+
+    try:
+        draw_line_segment([x0, y0], [line_x, line_y], (255,255,0), img)
+        draw_line_segment([x0, y0], [x_disp + x0, y0], (200, 180, 80), img)
+    except:
+        print("Error drawing line segment")
     #theta = line[1] - (np.pi + line[1]) * (line[0] < 0)
     #print(theta)
-    return line_x
+    return x_disp
 
 
-def detect_center_intersection(intersections, img):
+def detect_center_intersection(intersections, center_size, img):
     centered = False
-    x0, y0, c = img.shape
+    y0, x0, c = img.shape
     x0 = int(x0/2)
     y0 = int(y0/2)
     for intersection in intersections:
-        if np.sqrt((intersection[0] - y0)**2 + (intersection[1] - x0)**2) < 20:
+        if np.sqrt((intersection[0] - x0) ** 2 + (intersection[1] - y0) ** 2) < center_size:
             centered = True
             break
     return centered
@@ -293,7 +320,7 @@ def fly_drone(lines, intersections, img):
     if connected:
         z = tello.get_height()
     else:
-        z = 50
+        z = 100
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -307,7 +334,7 @@ def fly_drone(lines, intersections, img):
     Px = 1
     Pz = 1
     Ptheta = 1
-    x, y, c = img.shape
+    y, x, c = img.shape
     x0 = x/2
 
     # sets goal positions for the P control loop
@@ -316,17 +343,17 @@ def fly_drone(lines, intersections, img):
     des_z = 50
 
     # if an intersection is detected at the center of the frame, move above it
-    if detect_center_intersection(intersections, frame) and connected:
+    if detect_center_intersection(intersections, 20, frame) and connected:
         dist = corner_dist()
         tello.move_forward(int(dist))
         tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1] - np.pi / 2
-        vel_theta = Ptheta + (des_theta - pos_theta)
+        vel_theta = pid_theta(pos_theta)
         pos_x = get_line_x(line, frame)
-        vel_x = Px * (des_x - pos_x)
-        vel_z = Pz * (des_z - z)
+        vel_x = pid_x(pos_x)
+        vel_z = pid_z(z)
     if connected:
         tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
     else:
@@ -335,12 +362,14 @@ def fly_drone(lines, intersections, img):
         #print("Line x: " + str(get_line_x(line, [x, y])))
         pass
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 
 
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
+
+
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -357,7 +386,10 @@ while True:
     # visualize lines and intersections
     intersections = find_intersections(lines, frame)
     draw_lines(lines, (0, 0, 255), frame)
-    draw_line(close_line, (0, 255, 0), frame)
+    try:
+        draw_line(close_line, (0, 255, 0), frame)
+    except:
+        print("error drawing close line")
     draw_points(intersections, (255, 0, 0), frame)
 
     # control the drone
@@ -365,7 +397,7 @@ while True:
 
     # display lines
     x, y, c = frame.shape
-    draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
+    #draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
     #draw_point([0,0], [255,255,0], frame)
     #draw_point([0, 10], [255, 255, 0], frame)
     # Display the resulting frame
