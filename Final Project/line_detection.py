@@ -13,12 +13,12 @@ tello = Tello()
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
-pid_x = PID(1, 0.1, 0.05, setpoint=0)
-pid_x.output_limits = (-10, 10)
-pid_theta = PID(1, 0.1, 0.05, setpoint=0)
-pid_theta.output_limits = (-10, 10)
-pid_z = PID(1, 0.1, 0.05, setpoint=100)
-pid_z.output_limits = (-10, 10)
+pid_x = PID(3, 0.1, 0, setpoint=0)
+pid_x.output_limits = (-20, 20)
+pid_theta = PID(3, 0.1, 0.1, setpoint=0)
+pid_theta.output_limits = (-20, 20)
+pid_z = PID(3, 0.1, 0.1, setpoint=100)
+pid_z.output_limits = (-20, 20)
 
 
 try:
@@ -316,9 +316,15 @@ def fly_drone(lines, intersections, img):
     global connected
     # update elevation to keep it constant
     # for now to this:
+    state = tello.get_current_state()
+    if state is not None:
+        connected = True
+    else:
+        connected = False
 
     if connected:
-        z = tello.get_height()
+        z = state['tof']
+        z = np.clip(z, 0, 200)
     else:
         z = 100
 
@@ -350,10 +356,10 @@ def fly_drone(lines, intersections, img):
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1] - np.pi / 2
-        vel_theta = pid_theta(pos_theta)
+        vel_theta = int(pid_theta(pos_theta))
         pos_x = get_line_x(line, frame)
-        vel_x = pid_x(pos_x)
-        vel_z = pid_z(z)
+        vel_x = int(pid_x(pos_x))
+        vel_z = int(pid_z(z))
     if connected:
         tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
     else:
