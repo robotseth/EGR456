@@ -214,7 +214,6 @@ def draw_line(line, color, img):
 
 
 def draw_lines(lines, color, img):
-
     for line in lines:
         draw_line(line, color, img)
 
@@ -317,9 +316,9 @@ def fly_drone(lines, intersections, img):
     des_z = 50
 
     # if an intersection is detected at the center of the frame, move above it
-    if detect_center_intersection(intersections, frame):
+    if detect_center_intersection(intersections, frame) and connected:
         dist = corner_dist()
-        tello.move_forward(dist)
+        tello.move_forward(int(dist))
         tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
