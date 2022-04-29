@@ -24,11 +24,11 @@ def intializeTello():
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
-pid_x = PID(3, 0.1, 0, setpoint=0)
+pid_x = PID(1, 0.1, 0, setpoint=0)
 pid_x.output_limits = (-20, 20)
-pid_theta = PID(3, 0.1, 0.1, setpoint=0)
-pid_theta.output_limits = (-20, 20)
-pid_z = PID(3, 0.1, 0.1, setpoint=30)
+pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
+pid_theta.output_limits = (-40, 4)
+pid_z = PID(1, 0.1, 0.1, setpoint=20)
 pid_z.output_limits = (-20, 20)
 
 
@@ -46,8 +46,8 @@ except:
 def find_lines (img):
     lower_white = np.array([200, 200, 200])
     upper_white = np.array([255, 255, 255])
-    lower_blue = np.array([40, 0, 0])
-    upper_blue = np.array([255, 90, 40])
+    lower_blue = np.array([80, 0, 0])
+    upper_blue = np.array([255, 150, 80])
     #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     #smooth = ndi.filters.median_filter(gray, size=2)
     #cv2.imshow("SMOOTHED", smooth)
@@ -89,7 +89,7 @@ def corner_dist():
     if connected:
         elevation = tello.get_height()
     else:
-        elevation = 100
+        elevation = 30
     dist = int(elevation / np.tan(camera_angle))
     #print("Distance from intersection: " + str(dist))
     return dist
@@ -343,19 +343,11 @@ def fly_drone(lines, intersections, img):
     # for now, just leave it as a small value that we may need to change manually for each shape
 
     vel_x = 0
-    vel_y = 10
+    vel_y = 30
     vel_z = 0
     vel_theta = 0
-    Px = 1
-    Pz = 1
-    Ptheta = 1
     y, x, c = img.shape
     x0 = x/2
-
-    # sets goal positions for the P control loop
-    des_theta = np.pi / 2
-    des_x = x0
-    des_z = 50
 
     # if an intersection is detected at the center of the frame, move above it
     if detect_center_intersection(intersections, 20, frame) and connected:
@@ -370,25 +362,29 @@ def fly_drone(lines, intersections, img):
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
     if connected:
-        tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
+        tello.send_rc_control(-vel_x, vel_y, vel_z, 0) #vel_theta
+        #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
+        #print(msg)
     else:
         #print("Vel x: " + str(vel_x))
         #print("Vel theta: " + str(vel_theta))
         #print("Line x: " + str(get_line_x(line, [x, y])))
         pass
 
-cap = cv2.VideoCapture(3)
+#cap = cv2.VideoCapture(0)
 
 def telloGetFrame(tello, w, h):
     frame = tello.get_frame_read()
     frame = frame.frame
     img = cv2.resize(frame, (w, h))
     return img
-
+"""
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
+"""
 
+tello.takeoff()
 
 while True:
     # Capture frame-by-frame
@@ -427,5 +423,5 @@ while True:
     if cv2.waitKey(1) == ord('q'):
         break
 # When everything done, release the capture
-cap.release()
+#cap.release()
 cv2.destroyAllWindows()
