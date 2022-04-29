@@ -7,7 +7,18 @@ import time
 
 from matplotlib import pyplot as plt
 
-tello = Tello()
+def intializeTello():
+    myDrone = Tello()
+    myDrone.connect()
+    myDrone.for_back_velocity = 0
+    myDrone.left_right_velocity = 0
+    myDrone.up_down_velocity = 0
+    myDrone.yaw_velocity = 0
+    myDrone.speed = 0
+    print(myDrone.get_battery())
+    myDrone.streamoff()
+    myDrone.streamon()
+    return myDrone
 
 # img = cv2.imread('test (7).jpg')
 """ initializes PID objects for the fly_drone() function to use """
@@ -17,13 +28,13 @@ pid_x = PID(3, 0.1, 0, setpoint=0)
 pid_x.output_limits = (-20, 20)
 pid_theta = PID(3, 0.1, 0.1, setpoint=0)
 pid_theta.output_limits = (-20, 20)
-pid_z = PID(3, 0.1, 0.1, setpoint=100)
+pid_z = PID(3, 0.1, 0.1, setpoint=30)
 pid_z.output_limits = (-20, 20)
 
 
 try:
-    #tello.connect()
-    raise ValueError('Not trying to connect to drone - uncomment line above')
+    tello = intializeTello()
+    #raise ValueError('Not trying to connect to drone - uncomment line above')
     print("Connected to tello")
     connected = True
     # connect opencv to live video
@@ -35,12 +46,15 @@ except:
 def find_lines (img):
     lower_white = np.array([200, 200, 200])
     upper_white = np.array([255, 255, 255])
+    lower_blue = np.array([40, 0, 0])
+    upper_blue = np.array([255, 90, 40])
     #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     #smooth = ndi.filters.median_filter(gray, size=2)
     #cv2.imshow("SMOOTHED", smooth)
     #cv2.waitKey(0)
     #edges = smooth > 180 #180
-    mask = cv2.inRange(img, lower_white, upper_white)
+    mask = cv2.inRange(img, lower_blue, upper_blue)
+    cv2.imshow('mask', mask)
     img = cv2.bitwise_and(img, img, mask=mask)
     edges = cv2.Canny(img, 100, 200)
     """
@@ -317,16 +331,11 @@ def fly_drone(lines, intersections, img):
     # update elevation to keep it constant
     # for now to this:
     state = tello.get_current_state()
-    if state is not None:
-        connected = True
-    else:
-        connected = False
 
     if connected:
         z = state['tof']
-        z = np.clip(z, 0, 200)
     else:
-        z = 100
+        z = 30
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -368,8 +377,13 @@ def fly_drone(lines, intersections, img):
         #print("Line x: " + str(get_line_x(line, [x, y])))
         pass
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(3)
 
+def telloGetFrame(tello, w, h):
+    frame = tello.get_frame_read()
+    frame = frame.frame
+    img = cv2.resize(frame, (w, h))
+    return img
 
 if not cap.isOpened():
     print("Cannot open camera")
@@ -378,12 +392,14 @@ if not cap.isOpened():
 
 while True:
     # Capture frame-by-frame
-    ret, frame = cap.read()
+    frame = telloGetFrame(tello, 640, 480)
+    #ret, frame = cap.read()
     # if frame is read correctly ret is True
+    """
     if not ret:
         print("Can't receive frame (stream end?). Exiting ...")
         break
-
+    """
     # finds lines
     lines = find_lines(frame)
     lines = group_lines(lines, np.clip((len(lines) * 10), 0, 1000))
