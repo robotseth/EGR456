@@ -25,7 +25,7 @@ def intializeTello():
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
 pid_x = PID(1, 0.1, 0, setpoint=0)
-pid_x.output_limits = (-20, 20)
+pid_x.output_limits = (-30, 30)
 pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
 pid_theta.output_limits = (-40, 4)
 pid_z = PID(1, 0.1, 0.1, setpoint=10)
@@ -71,7 +71,7 @@ def find_lines (img):
     """
     # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
-    lines = cv2.HoughLines(edges.astype(np.uint8), .2, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
+    lines = cv2.HoughLines(edges.astype(np.uint8), .2, np.pi / 180, 30)  # edges.astype(np.uint8), .4, np.pi / 180, 120
     #circles = cv2.HoughCircles(edges.astype(np.uint8), .2, np.pi / 180, 40)
     # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
@@ -308,6 +308,7 @@ def detect_center_intersection(intersections, center_size, img):
     for intersection in intersections:
         if np.sqrt((intersection[0] - x0) ** 2 + (intersection[1] - y0) ** 2) < center_size:
             centered = True
+            print("Centered intersection found!!!")
             break
     return centered
 
@@ -356,8 +357,10 @@ def fly_drone(lines, intersections, img):
 
     # if an intersection is detected at the center of the frame, move above it
     if detect_center_intersection(intersections, 20, frame) and connected:
+        print("moving forward towards intersection")
         dist = corner_dist()
         tello.move_forward(int(dist))
+        print("rotating at intersection")
         tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
@@ -366,15 +369,15 @@ def fly_drone(lines, intersections, img):
         pos_x = get_line_x(line, frame)
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
-    if connected:
-        tello.send_rc_control(-vel_x, vel_y, vel_z, vel_theta)
-        #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
-        #print(msg)
-    else:
-        #print("Vel x: " + str(vel_x))
-        #print("Vel theta: " + str(vel_theta))
-        #print("Line x: " + str(get_line_x(line, [x, y])))
-        pass
+        if connected:
+            tello.send_rc_control(-vel_x, vel_y, vel_z, vel_theta)
+            #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
+            #print(msg)
+        else:
+            #print("Vel x: " + str(vel_x))
+            #print("Vel theta: " + str(vel_theta))
+            #print("Line x: " + str(get_line_x(line, [x, y])))
+            pass
 
 #cap = cv2.VideoCapture(0)
 
