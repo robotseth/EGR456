@@ -14,7 +14,7 @@ def intializeTello():
     myDrone.left_right_velocity = 0
     myDrone.up_down_velocity = 0
     myDrone.yaw_velocity = 0
-    myDrone.speed = 0
+    myDrone.speed = 10
     print(myDrone.get_battery())
     myDrone.streamoff()
     myDrone.streamon()
@@ -82,6 +82,10 @@ def find_lines (img):
         tmp = np.delete(tmp, (0), axis=0)
     except:
         print("no lines detected")
+        tello.for_back_velocity = 0
+        tello.left_right_velocity = 0
+        tello.up_down_velocity = 0
+        tello.yaw_velocity = 0
     return tmp
 
 
@@ -359,9 +363,9 @@ def fly_drone(lines, intersections, img):
     if detect_center_intersection(intersections, 20, frame) and connected:
         print("moving forward towards intersection")
         dist = corner_dist()
-        tello.move_forward(int(dist))
+        #tello.move_forward(int(dist))
         print("rotating at intersection")
-        tello.rotate_clockwise(deg)
+        #tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1] - np.pi / 2
@@ -370,7 +374,7 @@ def fly_drone(lines, intersections, img):
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
         if connected:
-            tello.send_rc_control(-vel_x, vel_y, vel_z, vel_theta)
+            tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
             #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
             #print(msg)
         else:
