@@ -7,23 +7,34 @@ import time
 
 from matplotlib import pyplot as plt
 
-tello = Tello()
+def intializeTello():
+    myDrone = Tello()
+    myDrone.connect()
+    myDrone.for_back_velocity = 0
+    myDrone.left_right_velocity = 0
+    myDrone.up_down_velocity = 0
+    myDrone.yaw_velocity = 0
+    myDrone.speed = 10
+    print(myDrone.get_battery())
+    myDrone.streamoff()
+    myDrone.streamon()
+    return myDrone
 
 # img = cv2.imread('test (7).jpg')
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
-pid_x = PID(3, 0.1, 0, setpoint=0)
-pid_x.output_limits = (-20, 20)
-pid_theta = PID(3, 0.1, 0.1, setpoint=0)
-pid_theta.output_limits = (-20, 20)
-pid_z = PID(3, 0.1, 0.1, setpoint=100)
+pid_x = PID(1, 0.1, 0, setpoint=0)
+pid_x.output_limits = (-30, 30)
+pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
+pid_theta.output_limits = (-40, 4)
+pid_z = PID(1, 0.1, 0.1, setpoint=10)
 pid_z.output_limits = (-20, 20)
 
 
 try:
-    #tello.connect()
-    raise ValueError('Not trying to connect to drone - uncomment line above')
+    tello = intializeTello()
+    #raise ValueError('Not trying to connect to drone - uncomment line above')
     print("Connected to tello")
     connected = True
     # connect opencv to live video
@@ -33,15 +44,23 @@ except:
 
 
 def find_lines (img):
-    lower_white = np.array([200, 200, 200])
+    lower_white = np.array([220, 220, 220])
     upper_white = np.array([255, 255, 255])
+    lower_blue = np.array([80, 0, 0])
+    upper_blue = np.array([255, 150, 80])
     #gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     #smooth = ndi.filters.median_filter(gray, size=2)
     #cv2.imshow("SMOOTHED", smooth)
     #cv2.waitKey(0)
     #edges = smooth > 180 #180
-    mask = cv2.inRange(img, lower_white, upper_white)
+    y, x, c = img.shape
+    mask_0 = np.zeros(img.shape[:2], dtype="uint8")
+    cv2.rectangle(mask_0, (0, y), (x, y-300), 255, -1)
+    mask_1 = cv2.inRange(img, lower_white, upper_white)
+    mask = mask_0 & mask_1
+    cv2.imshow('mask', mask)
     img = cv2.bitwise_and(img, img, mask=mask)
+
     edges = cv2.Canny(img, 100, 200)
     """
     plt.subplot(121), plt.imshow(img, cmap='gray')
@@ -52,7 +71,7 @@ def find_lines (img):
     """
     # draw_lines(edges,(255,255,0))
     # edges,1,np.pi/180, 200
-    lines = cv2.HoughLines(edges.astype(np.uint8), .2, np.pi / 180, 40)  # edges.astype(np.uint8), .4, np.pi / 180, 120
+    lines = cv2.HoughLines(edges.astype(np.uint8), .2, np.pi / 180, 30)  # edges.astype(np.uint8), .4, np.pi / 180, 120
     #circles = cv2.HoughCircles(edges.astype(np.uint8), .2, np.pi / 180, 40)
     # lines = cv2.HoughLines(edges.astype(np.uint8), .1, np.pi / 180, 120)
     # formats lines as an array of rho theta pairs
@@ -63,6 +82,10 @@ def find_lines (img):
         tmp = np.delete(tmp, (0), axis=0)
     except:
         print("no lines detected")
+        tello.for_back_velocity = 0
+        tello.left_right_velocity = 0
+        tello.up_down_velocity = 0
+        tello.yaw_velocity = 0
     return tmp
 
 
@@ -75,7 +98,7 @@ def corner_dist():
     if connected:
         elevation = tello.get_height()
     else:
-        elevation = 100
+        elevation = 10
     dist = int(elevation / np.tan(camera_angle))
     #print("Distance from intersection: " + str(dist))
     return dist
@@ -289,6 +312,7 @@ def detect_center_intersection(intersections, center_size, img):
     for intersection in intersections:
         if np.sqrt((intersection[0] - x0) ** 2 + (intersection[1] - y0) ** 2) < center_size:
             centered = True
+            print("Centered intersection found!!!")
             break
     return centered
 
@@ -317,16 +341,11 @@ def fly_drone(lines, intersections, img):
     # update elevation to keep it constant
     # for now to this:
     state = tello.get_current_state()
-    if state is not None:
-        connected = True
-    else:
-        connected = False
 
     if connected:
         z = state['tof']
-        z = np.clip(z, 0, 200)
     else:
-        z = 100
+        z = 10
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -334,25 +353,19 @@ def fly_drone(lines, intersections, img):
     # for now, just leave it as a small value that we may need to change manually for each shape
 
     vel_x = 0
-    vel_y = 10
+    vel_y = 30
     vel_z = 0
     vel_theta = 0
-    Px = 1
-    Pz = 1
-    Ptheta = 1
     y, x, c = img.shape
     x0 = x/2
 
-    # sets goal positions for the P control loop
-    des_theta = np.pi / 2
-    des_x = x0
-    des_z = 50
-
     # if an intersection is detected at the center of the frame, move above it
     if detect_center_intersection(intersections, 20, frame) and connected:
+        print("moving forward towards intersection")
         dist = corner_dist()
-        tello.move_forward(int(dist))
-        tello.rotate_clockwise(deg)
+        #tello.move_forward(int(dist))
+        print("rotating at intersection")
+        #tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1] - np.pi / 2
@@ -360,30 +373,42 @@ def fly_drone(lines, intersections, img):
         pos_x = get_line_x(line, frame)
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
-    if connected:
-        tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
-    else:
-        #print("Vel x: " + str(vel_x))
-        #print("Vel theta: " + str(vel_theta))
-        #print("Line x: " + str(get_line_x(line, [x, y])))
-        pass
+        if connected:
+            tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
+            #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
+            #print(msg)
+        else:
+            #print("Vel x: " + str(vel_x))
+            #print("Vel theta: " + str(vel_theta))
+            #print("Line x: " + str(get_line_x(line, [x, y])))
+            pass
 
-cap = cv2.VideoCapture(1)
+#cap = cv2.VideoCapture(0)
 
-
+def telloGetFrame(tello, w, h):
+    frame = tello.get_frame_read()
+    frame = frame.frame
+    img = cv2.resize(frame, (w, h))
+    return img
+"""
 if not cap.isOpened():
     print("Cannot open camera")
     exit()
+"""
 
+tello.takeoff()
+tello.move_down(90)
 
 while True:
     # Capture frame-by-frame
-    ret, frame = cap.read()
+    frame = telloGetFrame(tello, 640, 480)
+    #ret, frame = cap.read()
     # if frame is read correctly ret is True
+    """
     if not ret:
         print("Can't receive frame (stream end?). Exiting ...")
         break
-
+    """
     # finds lines
     lines = find_lines(frame)
     lines = group_lines(lines, np.clip((len(lines) * 10), 0, 1000))
@@ -411,5 +436,5 @@ while True:
     if cv2.waitKey(1) == ord('q'):
         break
 # When everything done, release the capture
-cap.release()
+#cap.release()
 cv2.destroyAllWindows()
