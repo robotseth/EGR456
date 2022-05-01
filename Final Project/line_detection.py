@@ -24,11 +24,11 @@ def intializeTello():
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
-pid_x = PID(1, 0.1, 0, setpoint=0)
-pid_x.output_limits = (-30, 30)
+pid_x = PID(.05, 0.02, .02, setpoint=0)
+pid_x.output_limits = (-20, 20)
 pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
 pid_theta.output_limits = (-40, 4)
-pid_z = PID(1, 0.1, 0.1, setpoint=10)
+pid_z = PID(1, 0.1, 0.1, setpoint=100)
 pid_z.output_limits = (-20, 20)
 
 
@@ -374,7 +374,8 @@ def fly_drone(lines, intersections, img):
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
         if connected:
-            tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
+            #tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
+            tello.send_rc_control(-vel_x, 0, vel_z, 0)
             #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
             #print(msg)
         else:
@@ -397,7 +398,7 @@ if not cap.isOpened():
 """
 
 tello.takeoff()
-tello.move_down(90)
+#tello.move_down(93)
 
 while True:
     # Capture frame-by-frame
