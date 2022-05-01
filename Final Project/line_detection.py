@@ -28,7 +28,7 @@ pid_x = PID(1, 0.1, 0, setpoint=0)
 pid_x.output_limits = (-20, 20)
 pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
 pid_theta.output_limits = (-40, 4)
-pid_z = PID(1, 0.1, 0.1, setpoint=20)
+pid_z = PID(1, 0.1, 0.1, setpoint=10)
 pid_z.output_limits = (-20, 20)
 
 
@@ -44,7 +44,7 @@ except:
 
 
 def find_lines (img):
-    lower_white = np.array([200, 200, 200])
+    lower_white = np.array([220, 220, 220])
     upper_white = np.array([255, 255, 255])
     lower_blue = np.array([80, 0, 0])
     upper_blue = np.array([255, 150, 80])
@@ -53,9 +53,14 @@ def find_lines (img):
     #cv2.imshow("SMOOTHED", smooth)
     #cv2.waitKey(0)
     #edges = smooth > 180 #180
-    mask = cv2.inRange(img, lower_blue, upper_blue)
+    y, x, c = img.shape
+    mask_0 = np.zeros(img.shape[:2], dtype="uint8")
+    cv2.rectangle(mask_0, (0, y), (x, y-300), 255, -1)
+    mask_1 = cv2.inRange(img, lower_white, upper_white)
+    mask = mask_0 & mask_1
     cv2.imshow('mask', mask)
     img = cv2.bitwise_and(img, img, mask=mask)
+
     edges = cv2.Canny(img, 100, 200)
     """
     plt.subplot(121), plt.imshow(img, cmap='gray')
@@ -89,7 +94,7 @@ def corner_dist():
     if connected:
         elevation = tello.get_height()
     else:
-        elevation = 30
+        elevation = 10
     dist = int(elevation / np.tan(camera_angle))
     #print("Distance from intersection: " + str(dist))
     return dist
@@ -335,7 +340,7 @@ def fly_drone(lines, intersections, img):
     if connected:
         z = state['tof']
     else:
-        z = 30
+        z = 10
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -362,7 +367,7 @@ def fly_drone(lines, intersections, img):
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
     if connected:
-        tello.send_rc_control(-vel_x, vel_y, vel_z, 0) #vel_theta
+        tello.send_rc_control(-vel_x, vel_y, vel_z, vel_theta)
         #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
         #print(msg)
     else:
@@ -385,6 +390,7 @@ if not cap.isOpened():
 """
 
 tello.takeoff()
+tello.move_down(90)
 
 while True:
     # Capture frame-by-frame
