@@ -20,13 +20,13 @@ def intializeTello():
     myDrone.streamon()
     return myDrone
 
-# img = cv2.imread('test (7).jpg')
+img_static = cv2.imread('test (7).jpg')
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
 pid_x = PID(.05, 0.02, .02, setpoint=0)
 pid_x.output_limits = (-20, 20)
-pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
+pid_theta = PID(1, 0.1, 0.1, setpoint=int(np.pi / 2))
 pid_theta.output_limits = (-40, 4)
 pid_z = PID(1, 0.1, 0.1, setpoint=100)
 pid_z.output_limits = (-20, 20)
@@ -58,10 +58,15 @@ def find_lines (img):
     cv2.rectangle(mask_0, (0, y), (x, y-300), 255, -1)
     mask_1 = cv2.inRange(img, lower_white, upper_white)
     mask = mask_0 & mask_1
-    cv2.imshow('mask', mask)
+    cv2.imshow('mask 0', mask_0)
+    cv2.imshow('mask 1', mask_1)
+    img_0 = cv2.bitwise_and(img, img, mask=mask_0)
     img = cv2.bitwise_and(img, img, mask=mask)
+    cv2.imshow('img 0', img_0)
+    cv2.imshow('img 1', img)
 
     edges = cv2.Canny(img, 100, 200)
+    cv2.imshow('edges', edges)
     """
     plt.subplot(121), plt.imshow(img, cmap='gray')
     plt.title('Original Image'), plt.xticks([]), plt.yticks([])
@@ -374,8 +379,8 @@ def fly_drone(lines, intersections, img):
         vel_x = int(pid_x(pos_x))
         vel_z = int(pid_z(z))
         if connected:
-            #tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
-            tello.send_rc_control(-vel_x, 0, vel_z, 0)
+            #tello.send_rc_control(-vel_x, vel_y, vel_z, -vel_theta)
+            tello.send_rc_control(0, 0, vel_z, 0) #-vel_theta
             #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
             #print(msg)
         else:
