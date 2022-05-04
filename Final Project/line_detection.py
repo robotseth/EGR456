@@ -130,8 +130,8 @@ def group_similar(data, axis):
 
 
 # calls the group similar function a number of times to group all the lines
-def group_lines(lines, itterations):
-    for i in range(itterations):
+def group_lines(lines, iterations):
+    for i in range(iterations):
         lines = group_similar(lines, 1 * (i % 2 == 0))
     return lines
 
@@ -147,16 +147,20 @@ def get_closest_line(lines, img):
     distances = []
     # open
     for line in lines:
-        angle_range = 25*(np.pi/180)
+        angle_range = 45*(np.pi/180)
         if 0 < line[1] < (angle_range/2) or (np.pi - angle_range/2) < line[1] < np.pi:
             y = np.sin(line[1]) * line[0]
             x = np.cos(line[1]) * line[0]
             dist = abs(np.cos(line[1]+np.pi/2)*(y - y0/2) - np.sin(line[1]+np.pi/2)*(x - x0/2))
             distances.append(dist)
         #print(dist)
-    index_min = min(range(len(distances)), key=distances.__getitem__)
-    closest_line = lines[index_min]
-    return closest_line
+    try:
+        index_min = min(range(len(distances)), key=distances.__getitem__)
+        closest_line = lines[index_min]
+        return closest_line
+    except:
+        print("no vertical lines found, returning centered vertical line")
+        return [x0/2, 0]
 
 
 # checks if the intersection is between two lines that are almost parallel
