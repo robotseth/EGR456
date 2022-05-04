@@ -24,14 +24,15 @@ img_static = cv2.imread('test (7).jpg')
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
-pid_x = PID(0.2, 0.01, 0, setpoint=0)
+pid_x = PID(0.05, 0.01, 0, setpoint=0)
 pid_x.output_limits = (-30, 30)
 #pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
-pid_theta = PID(20, 1, 0, setpoint=0)
+pid_theta = PID(30, 0.5, 0, setpoint=0)
 pid_theta.output_limits = (-40, 40)
-pid_z = PID(1, 0.1, 0.1, setpoint=50)
+pid_z = PID(1, 0.1, 0.1, setpoint=80)
 pid_z.output_limits = (-20, 20)
 pid_running = False
+advance_on_line = False
 
 try:
     tello = intializeTello()
@@ -153,7 +154,7 @@ def get_closest_line(lines, img):
     # open
     for line in lines:
         angle_range = 45*(np.pi/180)
-        if 0 < line[1] < (angle_range/2) or (np.pi - angle_range/2) < line[1] < np.pi:
+        if (0 < line[1] < (angle_range/2)) or ((np.pi - angle_range/2) < line[1] < np.pi):
             y = np.sin(line[1]) * line[0]
             x = np.cos(line[1]) * line[0]
             dist = abs(np.cos(line[1]+np.pi/2)*(y - y0/2) - np.sin(line[1]+np.pi/2)*(x - x0/2))
@@ -357,7 +358,7 @@ def fly_drone(lines, intersections, img):
     if connected:
         z = state['tof']
     else:
-        z = 10
+        z = 80
 
     deg = 90 # amount to rotate after seeing a corner
     # this would ideally change depending on the angle between the lines at the intersection
@@ -365,7 +366,7 @@ def fly_drone(lines, intersections, img):
     # for now, just leave it as a small value that we may need to change manually for each shape
 
     vel_x = 0
-    vel_y = 0
+    vel_y = 5
     vel_z = 0
     vel_theta = 0
     y, x, c = img.shape
@@ -373,11 +374,13 @@ def fly_drone(lines, intersections, img):
 
     # if an intersection is detected at the center of the frame, move above it
     if detect_center_intersection(intersections, 20, frame) and connected:
-        print("moving forward towards intersection")
-        dist = corner_dist()
+        #print("moving forward towards intersection")
+        #dist = corner_dist()
         #tello.move_forward(int(dist))
         print("rotating at intersection")
-        #tello.rotate_clockwise(deg)
+        tello.send_rc_control(0, 0, 0, 0)
+        tello.rotate_clockwise(deg)
+        tello.move_forward(5)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1]
@@ -389,6 +392,9 @@ def fly_drone(lines, intersections, img):
         vel_x = int(pid_x(-pos_x))
         #vel_z = int(pid_z(z))
         if connected:
+            if not advance_on_line:
+                vel_y = 0
+
             if pid_running:
                 tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
 
@@ -409,57 +415,6 @@ def fly_drone(lines, intersections, img):
             pass
 
 
-def fly_drone_manually(lines, intersections, img):
-    global connected
-    # update elevation to keep it constant
-    # for now to this:
-    state = tello.get_current_state()
-
-    if connected:
-        z = state['tof']
-    else:
-        z = 10
-
-    deg = 90 # amount to rotate after seeing a corner
-    # this would ideally change depending on the angle between the lines at the intersection
-    # this angle in not easy to get without making many changes, however
-    # for now, just leave it as a small value that we may need to change manually for each shape
-
-    vel_x = 0
-    vel_y = 0
-    vel_z = 0
-    vel_theta = 0
-    y, x, c = img.shape
-    x0 = x/2
-
-    # if an intersection is detected at the center of the frame, move above it
-    if detect_center_intersection(intersections, 20, frame) and connected:
-        print("moving forward towards intersection")
-        dist = corner_dist()
-        #tello.move_forward(int(dist))
-        print("rotating at intersection")
-        #tello.rotate_clockwise(deg)
-    else: # if an intersection is not centered on the frame, use line-based P control
-        line = get_closest_line(lines, img)
-        pos_theta = line[1] + np.pi / 2
-        #pos_theta = line[1]
-        vel_theta = int(pid_theta(pos_theta))
-        pos_x = get_line_x(line, frame)
-        #vel_x = int(pid_x(-pos_x))
-        #vel_z = int(pid_z(z))
-        if connected:
-            tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
-            msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
-            print(msg)
-            msg = f'PID X is {vel_x} and PID theta is {vel_theta}.'
-            print(msg)
-
-        else:
-            #print("Vel x: " + str(vel_x))
-            #print("Vel theta: " + str(vel_theta))
-            #print("Line x: " + str(get_line_x(line, [x, y])))
-            pass
-
 
 #cap = cv2.VideoCapture(0)
 
@@ -475,7 +430,7 @@ if not cap.isOpened():
 """
 
 tello.takeoff()
-#tello.move_down(20)
+tello.move_down(20)
 #tello.move_down(93)
 
 pid_x.reset()
@@ -519,8 +474,6 @@ while True:
     #draw_lines(np.array([[10,0],[10,np.pi/2],[x-10,np.pi/2],[y-10,0]]), (255,255,0), frame)
     #draw_point([0,0], [255,255,0], frame)
     #draw_point([0, 10], [255, 255, 0], frame)
-    # Display the resulting frame
-    cv2.imshow('frame', frame)
 
     keyPressed = cv2.waitKey(1)
 
@@ -559,34 +512,46 @@ while True:
         pid_running = not pid_running
         msg = f"Turned PID {'on' if pid_running else 'off'}"
         print(msg)
+    elif keyPressed == ord('2'):
+        # Toggle line advancing
+        advance_on_line = not advance_on_line
+        msg = f"Turned line adv. {'on' if pid_running else 'off'}"
+        print(msg)
 
     if not pid_running:
         if keyPressed == ord('w'):
             msg = "Moving forward"
             print(msg)
-            tello.send_rc_control(20, 0, 0, 0)
+            tello.send_rc_control(0, 20, 0, 0)
         elif keyPressed == ord('a'):
             msg = "Moving left"
             print(msg)
-            tello.send_rc_control(0, -20, 0, 0)
+            tello.send_rc_control(-20, 0, 0, 0)
         elif keyPressed == ord('s'):
             msg = "Moving back"
             print(msg)
-            tello.send_rc_control(-20, 0, 0, 0)
+            tello.send_rc_control(0, -20, 0, 0)
         elif keyPressed == ord('d'):
             msg = "Moving right"
             print(msg)
-            tello.send_rc_control(0, 20, 0, 0)
+            tello.send_rc_control(20, 0, 0, 0)
         elif keyPressed == ord('q'):
             msg = "Rotating ccw"
             print(msg)
-            tello.send_rc_control(0, 0, 0, 20)
+            tello.send_rc_control(0, 0, 0, -20)
         elif keyPressed == ord('e'):
             msg = "Rotating cw"
             print(msg)
-            tello.send_rc_control(0, 0, 0, -20)
+            tello.send_rc_control(0, 0, 0, 20)
+        elif keyPressed == ord(' '):
+            msg = "Holding still"
+            #print(msg)
+            tello.send_rc_control(0, 0, 0, 0)
 
     cv2.putText(img=frame, text=msg, org=(10, 100), fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(255, 255, 0),thickness=1)
+
+    # Display the resulting frame
+    cv2.imshow('frame', frame)
 
 
 # When everything done, release the capture
