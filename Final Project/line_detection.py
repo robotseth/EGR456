@@ -467,6 +467,7 @@ if not cap.isOpened():
 
 tello.takeoff()
 #tello.move_down(20)
+#tello.move_down(93)
 
 pid_x.reset()
 pid_theta.reset()
