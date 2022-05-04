@@ -24,13 +24,14 @@ def intializeTello():
 """ initializes PID objects for the fly_drone() function to use """
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
-pid_x = PID(1, 0.1, 0, setpoint=0)
+pid_x = PID(0.2, 0.01, 0, setpoint=0)
 pid_x.output_limits = (-30, 30)
-pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
-pid_theta.output_limits = (-40, 4)
-pid_z = PID(1, 0.1, 0.1, setpoint=10)
+#pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
+pid_theta = PID(20, 1, 0, setpoint=0)
+pid_theta.output_limits = (-40, 40)
+pid_z = PID(1, 0.1, 0.1, setpoint=50)
 pid_z.output_limits = (-20, 20)
-
+pid_running = False
 
 try:
     tello = intializeTello()
@@ -44,7 +45,7 @@ except:
 
 
 def find_lines (img):
-    lower_white = np.array([220, 220, 220])
+    lower_white = np.array([200, 200, 200])
     upper_white = np.array([255, 255, 255])
     lower_blue = np.array([80, 0, 0])
     upper_blue = np.array([255, 150, 80])
@@ -55,7 +56,7 @@ def find_lines (img):
     #edges = smooth > 180 #180
     y, x, c = img.shape
     mask_0 = np.zeros(img.shape[:2], dtype="uint8")
-    cv2.rectangle(mask_0, (0, y), (x, y-300), 255, -1)
+    cv2.rectangle(mask_0, (0, y), (x, 0), 255, -1)
     mask_1 = cv2.inRange(img, lower_white, upper_white)
     mask = mask_0 & mask_1
     cv2.imshow('mask', mask)
@@ -146,10 +147,12 @@ def get_closest_line(lines, img):
     distances = []
     # open
     for line in lines:
-        y = np.sin(line[1]) * line[0]
-        x = np.cos(line[1]) * line[0]
-        dist = abs(np.cos(line[1]+np.pi/2)*(y - y0/2) - np.sin(line[1]+np.pi/2)*(x - x0/2))
-        distances.append(dist)
+        angle_range = 25*(np.pi/180)
+        if 0 < line[1] < (angle_range/2) or (np.pi - angle_range/2) < line[1] < np.pi:
+            y = np.sin(line[1]) * line[0]
+            x = np.cos(line[1]) * line[0]
+            dist = abs(np.cos(line[1]+np.pi/2)*(y - y0/2) - np.sin(line[1]+np.pi/2)*(x - x0/2))
+            distances.append(dist)
         #print(dist)
     index_min = min(range(len(distances)), key=distances.__getitem__)
     closest_line = lines[index_min]
@@ -353,7 +356,7 @@ def fly_drone(lines, intersections, img):
     # for now, just leave it as a small value that we may need to change manually for each shape
 
     vel_x = 0
-    vel_y = 30
+    vel_y = 0
     vel_z = 0
     vel_theta = 0
     y, x, c = img.shape
@@ -368,20 +371,86 @@ def fly_drone(lines, intersections, img):
         #tello.rotate_clockwise(deg)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
-        pos_theta = line[1] - np.pi / 2
+        pos_theta = line[1]
+        if pos_theta >= int(np.pi/2):
+            pos_theta = pos_theta - int(np.pi)
+
         vel_theta = int(pid_theta(pos_theta))
         pos_x = get_line_x(line, frame)
-        vel_x = int(pid_x(pos_x))
-        vel_z = int(pid_z(z))
+        vel_x = int(pid_x(-pos_x))
+        #vel_z = int(pid_z(z))
         if connected:
-            tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
-            #msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
+            if pid_running:
+                tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
+
+            #msg = f'Pos X is {pos_x} and pos theta is {pos_theta}.'
             #print(msg)
+            msg = f'x = {pos_x} | theta = {round(pos_theta, 3)}'
+            cv2.putText(img=img, text=msg, org=(10, 25), fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(255, 255, 0),thickness=1)
+
+            #msg = f'PID X is {vel_x} {"right" if vel_x >= 0 else "left"} and PID theta is {vel_theta} {"cw" if vel_theta >= 0 else "ccw"}.'
+            msg = f'V_x = {vel_x} | V_theta = {vel_theta}'
+            cv2.putText(img=img, text=msg, org=(10, 62), fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(255, 255, 0),thickness=1)
+            #print(msg)
+
         else:
             #print("Vel x: " + str(vel_x))
             #print("Vel theta: " + str(vel_theta))
             #print("Line x: " + str(get_line_x(line, [x, y])))
             pass
+
+
+def fly_drone_manually(lines, intersections, img):
+    global connected
+    # update elevation to keep it constant
+    # for now to this:
+    state = tello.get_current_state()
+
+    if connected:
+        z = state['tof']
+    else:
+        z = 10
+
+    deg = 90 # amount to rotate after seeing a corner
+    # this would ideally change depending on the angle between the lines at the intersection
+    # this angle in not easy to get without making many changes, however
+    # for now, just leave it as a small value that we may need to change manually for each shape
+
+    vel_x = 0
+    vel_y = 0
+    vel_z = 0
+    vel_theta = 0
+    y, x, c = img.shape
+    x0 = x/2
+
+    # if an intersection is detected at the center of the frame, move above it
+    if detect_center_intersection(intersections, 20, frame) and connected:
+        print("moving forward towards intersection")
+        dist = corner_dist()
+        #tello.move_forward(int(dist))
+        print("rotating at intersection")
+        #tello.rotate_clockwise(deg)
+    else: # if an intersection is not centered on the frame, use line-based P control
+        line = get_closest_line(lines, img)
+        pos_theta = line[1] + np.pi / 2
+        #pos_theta = line[1]
+        vel_theta = int(pid_theta(pos_theta))
+        pos_x = get_line_x(line, frame)
+        #vel_x = int(pid_x(-pos_x))
+        #vel_z = int(pid_z(z))
+        if connected:
+            tello.send_rc_control(vel_x, vel_y, vel_z, vel_theta)
+            msg = f'Error X is {0 - pos_x} and error theta is {0 - pos_theta}.'
+            print(msg)
+            msg = f'PID X is {vel_x} and PID theta is {vel_theta}.'
+            print(msg)
+
+        else:
+            #print("Vel x: " + str(vel_x))
+            #print("Vel theta: " + str(vel_theta))
+            #print("Line x: " + str(get_line_x(line, [x, y])))
+            pass
+
 
 #cap = cv2.VideoCapture(0)
 
@@ -397,12 +466,21 @@ if not cap.isOpened():
 """
 
 tello.takeoff()
-tello.move_down(90)
+#tello.move_down(20)
+
+pid_x.reset()
+pid_theta.reset()
+pid_z.reset()
+
+global msg
+msg = " "
 
 while True:
     # Capture frame-by-frame
     frame = telloGetFrame(tello, 640, 480)
     #ret, frame = cap.read()
+    # Mirror frame on x-axis to account for drone-mounted mirror. Comment out for normal use
+    frame = cv2.flip(frame, 0)
     # if frame is read correctly ret is True
     """
     if not ret:
@@ -433,8 +511,74 @@ while True:
     #draw_point([0, 10], [255, 255, 0], frame)
     # Display the resulting frame
     cv2.imshow('frame', frame)
-    if cv2.waitKey(1) == ord('q'):
+
+    keyPressed = cv2.waitKey(1)
+
+    if keyPressed == ord('p'):
+        # Quit the program
         break
+    elif keyPressed == ord('t'):
+        # Increase x P gain
+        pid_x.Kp += 0.05
+        msg = f"x P gain up to {pid_x.Kp}"
+        print(msg)
+    elif keyPressed == ord('r'):
+        # Decrease x P gain
+        pid_x.Kp -= 0.05
+        msg = f"x P gain down to {pid_x.Kp}"
+        print(msg)
+    elif keyPressed == ord('v'):
+        # Increase theta P gain
+        pid_theta.Kp += 1
+        msg = f"Theta P gain up to {pid_theta.Kp}"
+        print(msg)
+    elif keyPressed == ord('c'):
+        # Decrease theta P gain
+        pid_theta.Kp -= 1
+        msg = f"Theta P gain down to {pid_theta.Kp}"
+        print(msg)
+    elif keyPressed == ord('f'):
+        # Reset PID values
+        pid_x.reset()
+        pid_theta.reset()
+        tello.send_rc_control(0, 0, 0, 0)
+        msg = "Reset PID"
+        print(msg)
+    elif keyPressed == ord('g'):
+        # Toggle PID running
+        pid_running = not pid_running
+        msg = f"Turned PID {'on' if pid_running else 'off'}"
+        print(msg)
+
+    if not pid_running:
+        if keyPressed == ord('w'):
+            msg = "Moving forward"
+            print(msg)
+            tello.send_rc_control(20, 0, 0, 0)
+        elif keyPressed == ord('a'):
+            msg = "Moving left"
+            print(msg)
+            tello.send_rc_control(0, -20, 0, 0)
+        elif keyPressed == ord('s'):
+            msg = "Moving back"
+            print(msg)
+            tello.send_rc_control(-20, 0, 0, 0)
+        elif keyPressed == ord('d'):
+            msg = "Moving right"
+            print(msg)
+            tello.send_rc_control(0, 20, 0, 0)
+        elif keyPressed == ord('q'):
+            msg = "Rotating ccw"
+            print(msg)
+            tello.send_rc_control(0, 0, 0, 20)
+        elif keyPressed == ord('e'):
+            msg = "Rotating cw"
+            print(msg)
+            tello.send_rc_control(0, 0, 0, -20)
+
+    cv2.putText(img=frame, text=msg, org=(10, 100), fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1, color=(255, 255, 0),thickness=1)
+
+
 # When everything done, release the capture
 #cap.release()
 cv2.destroyAllWindows()
