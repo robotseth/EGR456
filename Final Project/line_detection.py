@@ -25,7 +25,7 @@ img_static = cv2.imread('test (7).jpg')
 # pid_x.sample_time = 0.01  # Update every 0.01 seconds
 # the line above can be used to set the sample time, but it is assumed that the frame time will be consistent
 pid_x = PID(0.05, 0.01, 0, setpoint=0)
-pid_x.output_limits = (-30, 30)
+pid_x.output_limits = (-15, 15)
 #pid_theta = PID(4, 0.1, 0.1, setpoint=int(np.pi / 2))
 pid_theta = PID(30, 0.5, 0, setpoint=0)
 pid_theta.output_limits = (-40, 40)
@@ -33,6 +33,9 @@ pid_z = PID(1, 0.1, 0.1, setpoint=80)
 pid_z.output_limits = (-20, 20)
 pid_running = False
 advance_on_line = False
+pid_x_running = True
+pid_theta_running = True
+
 
 try:
     tello = intializeTello()
@@ -366,7 +369,7 @@ def fly_drone(lines, intersections, img):
     # for now, just leave it as a small value that we may need to change manually for each shape
 
     vel_x = 0
-    vel_y = 5
+    vel_y = 10
     vel_z = 0
     vel_theta = 0
     y, x, c = img.shape
@@ -379,8 +382,8 @@ def fly_drone(lines, intersections, img):
         #tello.move_forward(int(dist))
         print("rotating at intersection")
         tello.send_rc_control(0, 0, 0, 0)
-        tello.rotate_clockwise(deg)
-        tello.move_forward(5)
+        tello.rotate_counter_clockwise(deg)
+        tello.send_rc_control(0, 10, 0, 0)
     else: # if an intersection is not centered on the frame, use line-based P control
         line = get_closest_line(lines, img)
         pos_theta = line[1]
@@ -394,6 +397,12 @@ def fly_drone(lines, intersections, img):
         if connected:
             if not advance_on_line:
                 vel_y = 0
+
+            if not pid_x_running:
+                vel_x = 0
+
+            if not pid_theta_running:
+                vel_theta = 0
 
             if pid_running:
                 tello.send_rc_control(vel_x, vel_y, vel_z, -vel_theta)
@@ -477,6 +486,20 @@ while True:
 
     keyPressed = cv2.waitKey(1)
 
+    # Keyboard commands
+    # p = quit program
+    # w, a, s, d, q, e = Standard controls
+    # spacebar = stop movement in rc mode
+    # t = Increase x p gain
+    # r = Decrease x P gain
+    # v = Increase theta P gain
+    # c = Decrease theta P gain
+    # f = Reset PID values
+    # g = Toggle PID running
+    # 2 = Toggle line advancing
+    # 3 = Toggle x pid
+    # 4 = Toggle theta pid
+
     if keyPressed == ord('p'):
         # Quit the program
         break
@@ -515,34 +538,45 @@ while True:
     elif keyPressed == ord('2'):
         # Toggle line advancing
         advance_on_line = not advance_on_line
-        msg = f"Turned line adv. {'on' if pid_running else 'off'}"
+        msg = f"Turned line adv. {'on' if advance_on_line else 'off'}"
         print(msg)
+    elif keyPressed == ord('3'):
+        # Toggle x pid
+        pid_x_running = not pid_x_running
+        msg = f"Turned pid x {'on' if pid_x_running else 'off'}"
+        print(msg)
+    elif keyPressed == ord('4'):
+        # Toggle theta pid
+        pid_theta_running = not pid_theta_running
+        msg = f"Turned pid theta {'on' if pid_theta_running else 'off'}"
+        print(msg)
+
 
     if not pid_running:
         if keyPressed == ord('w'):
             msg = "Moving forward"
             print(msg)
-            tello.send_rc_control(0, 20, 0, 0)
+            tello.send_rc_control(0, 10, 0, 0)
         elif keyPressed == ord('a'):
             msg = "Moving left"
             print(msg)
-            tello.send_rc_control(-20, 0, 0, 0)
+            tello.send_rc_control(-10, 0, 0, 0)
         elif keyPressed == ord('s'):
             msg = "Moving back"
             print(msg)
-            tello.send_rc_control(0, -20, 0, 0)
+            tello.send_rc_control(0, -10, 0, 0)
         elif keyPressed == ord('d'):
             msg = "Moving right"
             print(msg)
-            tello.send_rc_control(20, 0, 0, 0)
+            tello.send_rc_control(10, 0, 0, 0)
         elif keyPressed == ord('q'):
             msg = "Rotating ccw"
             print(msg)
-            tello.send_rc_control(0, 0, 0, -20)
+            tello.send_rc_control(0, 0, 0, -10)
         elif keyPressed == ord('e'):
             msg = "Rotating cw"
             print(msg)
-            tello.send_rc_control(0, 0, 0, 20)
+            tello.send_rc_control(0, 0, 0, 10)
         elif keyPressed == ord(' '):
             msg = "Holding still"
             #print(msg)
